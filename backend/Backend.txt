@@ -17,16 +17,16 @@ backend/
 │
 ├── routes/                 # Routes de l'API
 │   ├── __init__.py
-│   ├── report.py           # Importation et analyse des PDF
-│   ├── chat.py             # Questions à l'IA
+│   ├── report.py           # Importation et analyse des PDF // JF
+│   ├── chat.py             # Questions à l'IA // JULIEN
 │   └── synthesis.py        # Génération des synthèses
 │
 ├── services/               # Logique métier
 │   ├── __init__.py
-│   ├── pdf_service.py      # Extraction du texte des PDF
-│   ├── ai_service.py       # Communication avec le modèle IA
-│   ├── report_service.py   # Extraction des scores et compétences
-│   └── audio_service.py    # Génération audio
+│   ├── pdf_service.py      # Extraction du texte des PDF // JF
+│   ├── ai_service.py       # Communication avec le modèle IA // JULIEN
+│   ├── report_service.py   # Extraction des scores et compétences // JF
+│   └── audio_service.py    # Génération audio // JULIEN
 │
 ├── models/
 │   ├── __init__.py
