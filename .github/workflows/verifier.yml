@@ -1,0 +1,16 @@
+# Filet de sécurité : relance les garde-fous du dépôt à chaque push, sur toutes les branches.
+# Une croix rouge ici = un fichier interdit, une clé d'API ou un projet.json invalide est dans le dépôt.
+# Les hooks locaux (.githooks/) empêchent le problème ; ce contrôle le signale s'ils n'étaient pas activés.
+name: Vérifier le dépôt
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verifier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fichiers interdits, secrets, projet.json
+        run: bash .githooks/verifier.sh --all

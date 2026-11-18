@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Avant chaque push :
+#   1. refuse d'écraser ou de supprimer main (push forcé) : cela efface le travail des coéquipiers ;
+#   2. revérifie chaque commit envoyé, au cas où il aurait été créé sans le hook pre-commit.
+
+distant="$1"
+verifier="$(dirname "$0")/verifier.sh"
+statut=0
+
+est_nul() { case "$1" in *[!0]*) return 1 ;; *) return 0 ;; esac; }
+
+while read -r ref_locale sha_local ref_distante sha_distant; do
+  if [ "$ref_distante" = "refs/heads/main" ]; then
+    if est_nul "$sha_local"; then
+      echo "Bloqué : suppression de la branche main." >&2
+      exit 1
+    fi
+    if ! est_nul "$sha_distant" && ! git merge-base --is-ancestor "$sha_distant" "$sha_local" 2>/dev/null; then
+      echo "Bloqué : ce push écraserait des commits de main (push forcé, ou main distant en avance)." >&2
+      echo "Faites « git pull », réglez le conflit s'il y en a un, puis « git push ». Jamais --force sur main." >&2
+      exit 1
+    fi
+  fi
+
+  est_nul "$sha_local" && continue
+
+  if ! est_nul "$sha_distant" && git cat-file -e "$sha_distant" 2>/dev/null; then
+    commits=$(git rev-list "$sha_distant..$sha_local")
+  else
+    commits=$(git rev-list "$sha_local" --not --remotes="$distant")
+  fi
+
+  for c in $commits; do
+    if ! bash "$verifier" --commit "$c"; then
+      echo "  (commit $(git rev-parse --short "$c") : $(git log -1 --format=%s "$c"))" >&2
+      statut=1
+    fi
+  done
+done
+
+if [ "$statut" -ne 0 ]; then
+  echo "Push annulé : un commit ci-dessus contient un fichier interdit. Le supprimer dans un nouveau commit ne suffit pas," >&2
+  echo "il resterait dans l'historique public. Demandez de l'aide à l'équipe pour réécrire ce commit avant de pousser." >&2
+fi
+exit "$statut"
