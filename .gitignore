@@ -32,6 +32,13 @@ rapport-des-possibles*
 *.mov
 *.zip
 
+# ─── Notes personnelles des assistants de code ───────────────────────────────
+# Le contexte partagé est dans AGENTS.md. Un CLAUDE.md local (une ligne : @AGENTS.md)
+# peut contenir des notes privées : il n'est jamais versionné.
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+
 # ─── Outils ──────────────────────────────────────────────────────────────────
 node_modules/
 dist/
