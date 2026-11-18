@@ -88,6 +88,7 @@ def test_metiers_et_zones(analyse):
         assert metier.zone == zone
         assert normaliser(metier.nom) == normaliser(nom)
         assert normaliser(description) in normaliser(metier.description)
+        assert "accessibles en" in metier.zone_label
         assert metier.source.type == "texte"
         assert metier.source.section == "Champ des possibles"
 
@@ -106,9 +107,9 @@ def test_scores_absents_si_pas_de_trace_vectoriel(tmp_path):
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     c.setFont("Helvetica-Bold", 16)
-    c.drawString(60, 750, "Aptitudes cognitives")
+    c.drawString(71, 780, "MESURE D'APTITUDES COGNITIVES")
     c.setFont("Helvetica", 10)
-    c.drawString(60, 720, "(graphique en image dans le vrai rapport)")
+    c.drawString(71, 750, "(graphique en image dans le vrai rapport)")
     c.showPage()
     c.save()
     chemin = tmp_path / "rapport-image.pdf"

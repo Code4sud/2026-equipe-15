@@ -12,7 +12,7 @@ def test_extraire_pages_lit_toutes_les_pages(chemin_pdf_fictif):
     assert len(pages) == 7
     assert pages[0].numero == 1
     assert "Rdv FICTIF" in pages[0].texte
-    assert "Rapport des Possibles" in pages[0].texte
+    assert "rapport des possibles" in pages[0].texte.lower()
 
 
 def test_extraire_pages_retourne_les_tracés_vectoriels(chemin_pdf_fictif):
@@ -29,7 +29,7 @@ def test_extraire_pages_retourne_les_tracés_vectoriels(chemin_pdf_fictif):
 
 def test_extraire_pages_retourne_les_lignes_stylées(chemin_pdf_fictif):
     pages = pdf_service.extraire_pages(chemin_pdf_fictif)
-    lignes_champ = [l for l in pages[4].lignes if "Zone" in l.texte]
+    lignes_champ = [l for l in pages[4].lignes if "ZONE DE MÉTIERS" in l.texte.upper()]
     assert lignes_champ, "les en-têtes de zone doivent apparaître en lignes"
     metiers = [l for l in pages[4].lignes if l.gras and "Coiffeur" in l.texte]
     assert metiers, "le nom du métier doit être détecté comme ligne en gras"

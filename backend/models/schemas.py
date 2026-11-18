@@ -36,6 +36,7 @@ class Metier(BaseModel):
 
     nom: str
     zone: int = Field(..., ge=1, le=5, description="Zone du rapport : 1 = 0-6 mois … 5 = 4-10 ans")
+    zone_label: str = Field("", description="Libellé de la zone lu dans le rapport, ex. « Métiers accessibles en 0 à 6 mois »")
     description: str = ""
     source: Source
 

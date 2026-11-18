@@ -114,6 +114,8 @@ class PageExtraite:
 
     numero: int  # à partir de 1
     texte: str
+    largeur: float
+    hauteur: float
     lignes: list[Ligne] = field(default_factory=list)
     mots: list[Mot] = field(default_factory=list)
     courbes: list[Courbe] = field(default_factory=list)
@@ -155,6 +157,8 @@ def extraire_pages(chemin: Path) -> list[PageExtraite]:
                 PageExtraite(
                     numero=numero,
                     texte=page.extract_text() or "",
+                    largeur=page.width,
+                    hauteur=page.height,
                     lignes=_extraire_lignes(page.chars),
                     mots=_extraire_mots(page.extract_words()),
                     courbes=_extraire_courbes(page.curves),
@@ -217,10 +221,12 @@ def _extraire_barres(rects_pdfplumber: list[dict]) -> list[Barre]:
 
 
 def normaliser(texte: str) -> str:
-    """Minuscules, sans accents, espaces réduits : sert à comparer des titres
-    et des mots-clés. L'extraction PDF perd parfois les doubles « l »
-    (« travaile »), on ne corrige pas le texte brut : on compare sur la
-    version normalisée."""
-    decompose = unicodedata.normalize("NFKD", texte.lower())
+    """Minuscules, apostrophes ramenées à `'`, sans accents, espaces réduits :
+    sert à comparer des titres et des mots-clés (« MESURE D’INTÉRÊTS » et
+    « mesure d'interets » doivent donner la même forme). L'extraction PDF
+    perd parfois les doubles « l » (« travaile ») : on ne corrige pas le
+    texte brut, on compare sur la version normalisée."""
+    apostrophes = re.sub(r"[’‘ʼ`´]", "'", texte.lower())
+    decompose = unicodedata.normalize("NFKD", apostrophes)
     sans_accents = "".join(c for c in decompose if not unicodedata.combining(c))
     return re.sub(r"\s+", " ", sans_accents).strip()
