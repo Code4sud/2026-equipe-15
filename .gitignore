@@ -1,5 +1,34 @@
+# ─── Données confidentielles : le dépôt est PUBLIC ────────────────────────────
+# Les Rapports des Possibles et toute donnée fournie par le Centre vont dans
+# prive/ (jamais ailleurs dans le dépôt). Ce dossier n'est jamais publié.
+prive/
+*.pdf
+*.xlsx
+*.xls
+rapport-des-possibles*
+
+# ─── Secrets : jamais de clé d'API dans le dépôt ─────────────────────────────
 .env
 .env.*
+!.env.example
+*.pem
+*.key
+
+# ─── Fichiers lourds : GitHub refuse tout fichier de plus de 100 Mo ──────────
+# Modèles d'IA, vidéos et archives restent hors du dépôt (le README dit où les
+# télécharger). La vidéo de démo se remet sur clé USB, pas ici.
+models/
+*.gguf
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.mp4
+*.mov
+*.zip
+
+# ─── Outils ──────────────────────────────────────────────────────────────────
 node_modules/
 dist/
 __pycache__/
