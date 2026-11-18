@@ -1,0 +1,37 @@
+
+
+//'analyser des rapports PDF,
+d'extraire les scores, 
+de communiquer avec une IA
+de générer des restitutions personnalisées (texte, audio, fiches interactives).
+
+Recevoir un PDF et retourner les scores du graphique sous forme de JSON, avec leurs sources.
+
+
+backend/
+│
+├── main.py                 # Point d'entrée FastAPI
+├── requirements.txt        # Dépendances Python
+├── .env                    # Clés API et configuration
+├── .gitignore
+│
+├── routes/                 # Routes de l'API
+│   ├── __init__.py
+│   ├── report.py           # Importation et analyse des PDF
+│   ├── chat.py             # Questions à l'IA
+│   └── synthesis.py        # Génération des synthèses
+│
+├── services/               # Logique métier
+│   ├── __init__.py
+│   ├── pdf_service.py      # Extraction du texte des PDF
+│   ├── ai_service.py       # Communication avec le modèle IA
+│   ├── report_service.py   # Extraction des scores et compétences
+│   └── audio_service.py    # Génération audio
+│
+├── models/
+│   ├── __init__.py
+│   └── schemas.py          # Structures JSON avec Pydantic
+│
+└── storage/
+    ├── uploads/            # PDF temporaires
+    └── outputs/            # Synthèses générées
