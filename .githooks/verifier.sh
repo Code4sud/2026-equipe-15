@@ -70,6 +70,9 @@ while IFS= read -r -d '' f; do
   # 1. Emplacements et types de fichiers interdits
   case "/$minuscules" in
     */prive/*) erreur "$f : le dossier prive/ ne doit jamais être publié." ;;
+    */storage/uploads/.gitkeep | */storage/outputs/.gitkeep) ;;
+    */storage/uploads/* | */storage/outputs/*)
+      erreur "$f : fichier déposé ou généré à partir d'un rapport (storage/), jamais publié." ;;
   esac
   case "$nom" in
     rapport-des-possibles*)
