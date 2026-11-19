@@ -70,7 +70,7 @@ Documentation de l'organisation : https://orientation.code4sud.fr/doc/ et https:
 | Avertissement final | Résultats expérimentaux, pistes de réflexion, erreurs possibles | Texte |
 
 - Les scores sont dans des images ou des tracés : l'extraction de texte ne les donne pas. Il faut lire le graphique (modèle de vision, analyse du tracé) ou les saisir.
-- Dans l'exemple étudié, les trois dimensions les plus hautes de chaque radar ont une étiquette rose, les autres une étiquette bleue. Observé sur un seul rapport : à vérifier sur les autres.
+- Sous chaque radar, les deux dimensions les plus hautes ont une étiquette rose, les quatre autres une étiquette bleue. Vérifié sur les 18 rapports.
 - L'extraction de texte perd parfois les doubles « l » (« travaile », « instale ») : comparez sur un texte normalisé.
 - La psychomotricité est mesurée au Centre mais n'entre pas encore dans le rapport.
 
@@ -122,6 +122,8 @@ Ces règles viennent du sujet et du guide du Centre. Elles valent pour les promp
 | `.githooks/` | Garde-fous : `pre-commit` et `pre-push` appellent `verifier.sh`. |
 | `.github/workflows/pages.yml` | Publication de la démo sur GitHub Pages à chaque push sur `main`. |
 | `.github/workflows/verifier.yml` | Les mêmes garde-fous, côté GitHub, sur toutes les branches. |
+| `contrat/` | Format des données échangées entre le backend et le frontend, avec un exemple inventé. |
+| `docs/frontend-etapes.md` | Plan de travail du frontend. |
 | `prive/` | Données confidentielles, local, ignoré par git. |
 
 **À faire une fois par clone :**
@@ -142,7 +144,7 @@ git config core.hooksPath .githooks
 - S'il trouve un `package.json` **à la racine** avec un script `build`, il lance `npm ci` puis `npm run build` et publie `dist/`. Sinon il publie la racine du dépôt.
 - `npm ci` exige un `package-lock.json` versionné.
 - Avec Vite : `base: '/2026-equipe-15/'` dans `vite.config.js`.
-- Un backend (Python, Ollama…) n'est pas hébergé par GitHub Pages.
+- Un backend (Node.js, Ollama…) n'est pas hébergé par GitHub Pages.
 
 **IA.** Les modèles open weight (Mistral, Llama, Gemma, Qwen…, en local avec Ollama ou LM Studio) sont recommandés par l'organisation. Les API payantes sont acceptées, aux frais de l'équipe.
 
@@ -169,23 +171,28 @@ Le travail remonte dans un seul sens : sous-branche → `Backend` ou `frontend` 
 - **Avant de pousser :** `git pull`, puis `git push`. En cas de conflit, réglez-le ou demandez de l'aide ; ne forcez jamais.
 - **Pas de `git rebase` sur une branche déjà poussée :** il oblige à un push forcé.
 
-## 8. Architecture prévue
+## 8. Architecture
 
-État au 18/11 : un plan existe pour le backend, aucun code n'est encore écrit. Vérifiez l'état réel du dépôt avant de vous y fier.
+État au 19/11. Vérifiez l'état réel du dépôt avant de vous y fier.
 
-**Backend (plan, fichier `backend/Backend.txt` de la branche `Backend`).** Une API FastAPI qui reçoit un rapport en PDF, en extrait les scores et les métiers en JSON avec leurs sources, dialogue avec un modèle d'IA et génère des restitutions personnalisées (texte, audio, fiches interactives).
+**Backend (`backend/`, Node.js + Express).** Une API qui reçoit un rapport en PDF, en extrait les scores et les métiers en JSON avec leurs sources, puis sert les restitutions générées par un modèle d'IA. Le PDF est lu avec `pdfjs-dist` : le texte pour les métiers, les tracés vectoriels pour les scores des graphiques. Le code est sur la branche `jf/extraction-pdf-scores` tant qu'elle n'est pas fusionnée dans `Backend` ; son fichier `backend/Backend.txt` détaille chaque module et dit comment lancer l'API.
 
 ```text
 backend/
-├── main.py              point d'entrée FastAPI
-├── requirements.txt
-├── routes/              report.py (import et analyse du PDF), chat.py (questions à l'IA), synthesis.py (synthèses)
-├── services/            pdf_service.py, report_service.py, ai_service.py, audio_service.py
-├── models/schemas.py    structures JSON (Pydantic)
-└── storage/             uploads/ (PDF déposés), outputs/ (synthèses générées) : jamais versionnés
+├── server.js            point d'entrée Express
+├── package.json
+├── src/pdfReader.js     lecture du PDF : texte, lignes, tracés
+├── src/report/          sections.js, scores.js, metiers.js, analyzer.js
+├── src/routes/          report.js (dépôt et analyse du PDF) ; à venir : synthèses et questions à l'IA
+├── tests/               sur un rapport inventé (« Rdv FICTIF »)
+└── storage/             uploads/ (PDF déposés), outputs/ (analyses générées) : jamais versionnés
 ```
 
-**Frontend.** Pas encore décidé.
+**IA.** Un modèle ouvert qui tourne en local avec Ollama. Son nom et l'adresse d'Ollama se lisent dans le `.env`, jamais en dur dans le code.
+
+**Frontend.** Un site pensé d'abord pour le téléphone. Le plan de travail, écran par écran, est dans `docs/frontend-etapes.md`. Technologie proposée : Vite, React et Tailwind, à la racine du dépôt.
+
+**Format des données.** Ce que le backend renvoie et ce que le frontend enregistre est décrit dans `contrat/`, avec un exemple entièrement inventé (`contrat/rapport-fictif.json`).
 
 ## 9. Façon de travailler
 
@@ -197,14 +204,20 @@ backend/
 - **Messages de commit courts, en français**, qui disent ce qui change.
 - **Avant tout commit, contrôlez ce qui part :** `git status`, puis `bash .githooks/verifier.sh --staged`.
 
-## 10. Pas encore décidé
+## 10. Décidé, et pas encore décidé
 
-Ne tranchez pas ces points à la place de l'équipe.
+**Décidé le 19/11 :**
 
-- Le nom du projet et le texte de `projet.json`.
-- La technologie du frontend.
-- Le ou les modèles d'IA utilisés, et s'ils tournent en local ou par API.
-- Le format de restitution visé en premier (texte, audio, fiche interactive).
-- L'hébergement de la démo (GitHub Pages seul, backend hébergé ailleurs, ou démo locale).
+- Le projet s'appelle Possibles.AI.
+- Le site est conçu d'abord pour le téléphone.
+- Le backend est en Node.js + Express.
+- Le modèle d'IA tourne en local avec Ollama.
+- La première restitution est un résumé écrit, puis sa version audio.
+- La démo devant le jury se fait en local.
+
+**Pas encore décidé.** Ne tranchez pas ces points à la place de l'équipe.
+
+- La technologie du frontend (proposition : Vite, React, Tailwind).
+- Le modèle d'IA précis.
 - Le nom des sous-branches et qui valide les fusions vers `main`.
 - Le droit d'envoyer un rapport réel à une API en ligne, et celui de publier la table O\*NET : questions à poser à l'organisation.
