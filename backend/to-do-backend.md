@@ -63,11 +63,17 @@ C'est la première restitution décidée le 19/11, et c'est là que le jury cher
 
 ### 2. Le PDF pour la visionneuse (`rapport_pdf_url`)
 
-- [ ] `GET /report/{jeton}/pdf` : sert le PDF du jeton (`Content-Type: application/pdf`), avec les mêmes contrôles et
-      le même 404 que les autres routes. Sans cette route, les phrases du résumé ne peuvent pas ouvrir le rapport à
-      la bonne page.
-- [ ] Ajouter `rapport_pdf_url` à la réponse de `GET /report/{jeton}`, ou laisser le front construire l'adresse : à
-      caler avec le front.
+- [x] `GET /report/{jeton}/pdf` : sert le PDF du jeton, avec les mêmes contrôles et le même 404 que les autres
+      routes.
+  - Le nom de fichier est neutre (`rapport.pdf`) : le nom rangé dans `prive/` ne sort pas.
+  - La lecture par morceaux de PDF.js est servie (`Range`, 206), et ses en-têtes sont exposés en CORS.
+  - Testé : PDF.js ouvre le rapport par l'API, jusqu'à la dernière page.
+- [x] `rapport_pdf_url` est ajouté à la réponse de `GET /report/{jeton}` : `/report/{jeton}/pdf`, relatif à la racine
+      de l'API.
+- [ ] **À dire au front** :
+  - avec l'API, l'adresse du PDF est `<adresse de l'API>` + `rapport_pdf_url`, et non plus `BASE_URL` + le nom du
+    fichier (`src/lib/donnees.js`) ;
+  - le PDF inventé reste le repli quand le backend ne tourne pas.
 
 ### 3. Le branchement avec le front
 

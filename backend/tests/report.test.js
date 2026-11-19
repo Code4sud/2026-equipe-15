@@ -76,6 +76,48 @@ test('GET /report/{jeton} : analyse du rapport, puis relue depuis le cache', { s
   });
 });
 
+test('GET /report/{jeton}/pdf : le PDF pour la visionneuse, lecture par morceaux', { skip: sansPdf }, async () => {
+  const { jeton } = creerLien(pdfs[0]);
+  const original = fs.readFileSync(path.join(PRIVE, pdfs[0]));
+  await avecServeur(async (base) => {
+    // L'analyse donne l'adresse du PDF (contrat : rapport_pdf_url)
+    const analyse = await (await fetch(`${base}/report/${jeton}`)).json();
+    assert.equal(analyse.rapport_pdf_url, `/report/${jeton}/pdf`);
+
+    // Le fichier entier, à l'identique, sous un nom neutre et sans cache
+    const r = await fetch(`${base}${analyse.rapport_pdf_url}`, { headers: { Origin: 'http://localhost:5173' } });
+    assert.equal(r.status, 200);
+    assert.equal(r.headers.get('content-type'), 'application/pdf');
+    assert.equal(r.headers.get('content-disposition'), 'inline; filename="rapport.pdf"');
+    assert.equal(r.headers.get('cache-control'), 'no-store');
+    assert.equal(r.headers.get('referrer-policy'), 'no-referrer');
+    assert.equal(r.headers.get('x-content-type-options'), 'nosniff');
+    assert.equal(r.headers.get('accept-ranges'), 'bytes');
+    assert.ok(r.headers.get('access-control-allow-origin'));
+    assert.match(r.headers.get('access-control-expose-headers'), /Content-Range/);
+    const corps = Buffer.from(await r.arrayBuffer());
+    assert.ok(corps.equals(original), 'PDF servi différent du fichier de prive/');
+
+    // Une partie seulement, comme le demande PDF.js (206)
+    const partie = await fetch(`${base}/report/${jeton}/pdf`, { headers: { Range: 'bytes=0-99' } });
+    assert.equal(partie.status, 206);
+    assert.equal(partie.headers.get('content-range'), `bytes 0-99/${original.length}`);
+    assert.ok(Buffer.from(await partie.arrayBuffer()).equals(original.subarray(0, 100)));
+
+    // PDF.js (la bibliothèque de la visionneuse) ouvre le rapport par l'API,
+    // jusqu'à sa dernière page.
+    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.min.mjs');
+    const doc = await pdfjs.getDocument({ url: `${base}${analyse.rapport_pdf_url}`, isEvalSupported: false }).promise;
+    try {
+      assert.equal(doc.numPages, analyse.nb_pages);
+      const derniere = await doc.getPage(doc.numPages);
+      assert.ok((await derniere.getTextContent()).items.length > 0);
+    } finally {
+      await doc.destroy();
+    }
+  });
+});
+
 test('POST /report/{jeton}/resume : 4 phrases avec leur page, repli sans Ollama', { skip: sansPdf }, async () => {
   const { jeton } = creerLien(pdfs[0]);
   await avecServeur(async (base) => {
@@ -118,10 +160,12 @@ test('jeton inconnu, mal formé ou pointant hors de prive/ -> même 404', async 
   const piege = 'b'.repeat(32);
   fs.writeFileSync(process.env.LIENS_FICHIER, JSON.stringify({ ...lire(), [piege]: '../package.json.pdf' }));
   await avecServeur(async (base) => {
-    for (const id of ['a'.repeat(32), piege, '1234','..%2F..%2Fetc%2Fpasswd', 'A'.repeat(32), 'constructor']) {
-      const r = await fetch(`${base}/report/${id}`);
-      assert.equal(r.status, 404, id);
-      assert.deepEqual(await r.json(), { detail: 'Rapport introuvable' });
+    for (const id of ['a'.repeat(32), piege, '1234', '..%2F..%2Fetc%2Fpasswd', 'A'.repeat(32), 'constructor']) {
+      for (const route of [`/report/${id}`, `/report/${id}/pdf`]) {
+        const r = await fetch(`${base}${route}`);
+        assert.equal(r.status, 404, route);
+        assert.deepEqual(await r.json(), { detail: 'Rapport introuvable' });
+      }
     }
   });
 });

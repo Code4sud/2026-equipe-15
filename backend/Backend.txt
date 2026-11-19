@@ -70,7 +70,11 @@ backend/
 Routes actuelles :
     GET  /report/{jeton}        : analyse complète (JSON avec sources), calculée à la
                                   première consultation puis relue depuis storage/outputs/
+                                  Contient rapport_pdf_url = /report/{jeton}/pdf (relative à l'API).
     GET  /report/{jeton}/scores : les 3 graphiques (RIASEC, aptitudes, HEXACO) avec leurs sources
+    GET  /report/{jeton}/pdf    : le PDF, pour la visionneuse (PDF.js / react-pdf). Nom neutre
+                                  « rapport.pdf », lecture par morceaux (Range, 206) et en-têtes
+                                  Content-Range… exposés en CORS.
     POST /report/{jeton}/resume : résumé écrit, corps facultatif { onboarding } (forme du contrat).
                                   Renvoie points [{ texte, page, fait, origine }], texte, phrases,
                                   faits [{ id, page, texte }], genere_par { mode, modele, raison },
