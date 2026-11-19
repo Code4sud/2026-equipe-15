@@ -47,9 +47,12 @@ export function lireChoix(storage, rapportId, metiers, catalogue) {
   const empty = initialState();
   // Un localStorage bloqué est signalé à l'interface, plutôt que d'annoncer une sauvegarde.
   const raw = storage.getItem(STORAGE_KEY);
-  if (!raw) return empty;
+  const legacy = raw ? null : storage.getItem('possibles.onboarding');
+  if (!raw && !legacy) return empty;
   let saved;
-  try { saved = JSON.parse(raw); } catch { return empty; }
+  try {
+    saved = raw ? JSON.parse(raw) : { rapport_id: rapportId, onboarding: JSON.parse(legacy) };
+  } catch { return empty; }
   if (saved?.rapport_id !== rapportId || !saved.onboarding) return empty;
   const input = saved.onboarding;
   const interets_metiers = {};

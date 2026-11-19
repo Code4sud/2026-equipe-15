@@ -58,6 +58,19 @@ test('la fin est persistée et un autre rapport ne récupère pas ces choix', ()
   assert.deepEqual(lireChoix(storage, 'autre-fictif', metiers, catalogue), initialState());
 });
 
+test('récupère les choix déjà enregistrés par la page d’accueil des collègues', () => {
+  const storage = memoryStorage();
+  storage.setItem('possibles.onboarding', JSON.stringify({
+    termine: true, interets_metiers: { a: 'interesse' }, favoris: { 1: 'a' }, ajouts_psy: catalogue,
+  }));
+  const state = lireChoix(storage, 'rdv-fictif', metiers, catalogue);
+  assert.equal(state.termine, true);
+  assert.equal(state.favoris[1], 'a');
+  assert.deepEqual(state.ajouts_psy, catalogue);
+  enregistrerChoix(storage, 'rdv-fictif', state);
+  assert.equal(JSON.parse(storage.getItem(STORAGE_KEY)).onboarding.favoris[1], 'a');
+});
+
 test('des données locales malformées sont écartées et les positions sont bornées', () => {
   const storage = memoryStorage();
   storage.setItem(STORAGE_KEY, 'invalide');
