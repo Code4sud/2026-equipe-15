@@ -14,6 +14,7 @@ import express from 'express';
 import cors from 'cors';
 import { config } from './src/config.js';
 import { router as reportRouter } from './src/routes/report.js';
+import { router as chatRouter } from './src/routes/chat.js';
 
 const app = express();
 
@@ -25,11 +26,12 @@ app.use(cors({ origin: config.corsAllowOrigins.includes('*') ? true : config.cor
 app.use(express.json({ limit: '1mb' }));
 
 app.use('/report', reportRouter);
+app.use('/chat', chatRouter);
 
 app.get('/', (req, res) => {
   res.json({
     projet: 'Rapport des Possibles augmenté — équipe 15',
-    routes: ['/report/{jeton}', '/report/{jeton}/scores'],
+    routes: ['/report/{jeton}', '/report/{jeton}/scores', 'POST /chat/{jeton}'],
   });
 });
 

@@ -23,7 +23,9 @@ export function configOllama() {
 // Envoie un message au modèle et renvoie sa réponse en objet JSON. `schema`
 // (JSON Schema) contraint la forme de la réponse (sorties structurées
 // d'Ollama). Lève ErreurIA si Ollama est absent, lent, ou répond mal.
-export async function discuterJson({ systeme, message, schema, temperature = 0.2 }) {
+// `historique` : messages précédents d'une discussion ([{ role, content }],
+// rôles user / assistant), placés entre les instructions et le message.
+export async function discuterJson({ systeme, message, schema, historique = [], temperature = 0.2 }) {
   const { url, modele, delaiMs, think } = configOllama();
   if (!modele) throw new ErreurIA('OLLAMA_MODEL non défini');
   let reponse;
@@ -39,6 +41,7 @@ export async function discuterJson({ systeme, message, schema, temperature = 0.2
         options: { temperature },
         messages: [
           { role: 'system', content: systeme },
+          ...historique,
           { role: 'user', content: message },
         ],
       }),

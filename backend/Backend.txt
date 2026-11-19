@@ -60,14 +60,18 @@ backend/
 │   │   ├── faits.js        # les faits du résumé, chacun avec sa page (seule matière donnée au modèle)
 │   │   ├── controle.js     # refus des phrases sans fait, avec un nombre inventé ou un mot interdit
 │   │   └── generer.js      # résumé : modèle + contrôle + repli sans IA
+│   ├── chat/
+│   │   ├── instructions.js # instructions de l'assistant (prompt système), schéma JSON, message
+│   │   ├── contexte.js     # faits donnés à l'assistant : ceux du résumé + un par métier
+│   │   └── repondre.js     # réponse : modèle + contrôle + « pas dans ton rapport » + repli
 │   ├── report/
 │   │   ├── sections.js     # structure connue du rapport : sections, mots-clés, pages
 │   │   ├── scores.js       # lecture des scores sur les tracés (radar, histogramme) + géométrie
 │   │   ├── metiers.js      # champ des possibles : zones et métiers (lignes en gras)
 │   │   └── analyzer.js     # analyserRapport() : orchestration -> JSON d'analyse
 │   └── routes/
-│       └── report.js       # GET /report/{jeton}, GET /report/{jeton}/scores
-│                           # (chat.js et synthesis.js viendront ici : /chat, /synthesis)
+│       ├── report.js       # GET /report/{jeton}, GET /report/{jeton}/scores…
+│       └── chat.js         # POST /chat/{jeton} : l'assistant // JULIEN
 │
 ├── scripts/
 │   ├── creerLien.js        # npm run lien -- <fichier.pdf> : jeton ajouté à prive/liens.json
@@ -111,11 +115,17 @@ Routes actuelles :
     GET  /report/{jeton}/audio/{empreinte} : le texte du résumé lu par Piper (audio/wav), créé au
                                   premier appel puis gardé en cache ; 503 si pas de voix réglée
                                   ou si Piper échoue (le front garde alors le texte seul).
+    POST /chat/{jeton}          : l'assistant. Corps { question (500 caractères au plus),
+                                  historique? [{ de: 'moi' | 'ia', texte }] (6 derniers gardés),
+                                  onboarding? }. Renvoie reponse, phrases [{ texte, faits }],
+                                  sources [{ fait, page, texte }], dans_rapport (true, false si
+                                  la réponse n'est pas dans le rapport, null en repli),
+                                  genere_par { mode, modele, raison }, controle. 400 si la
+                                  question est vide ou trop longue. Pas de cache.
     Jeton mal formé ou inconnu : 404 « Rapport introuvable », toujours la même réponse.
     Réponses en Cache-Control: no-store et Referrer-Policy: no-referrer (données personnelles).
 
 À venir (mêmes dossiers) :
-    src/routes/chat.js       # questions à l'IA sur une analyse // JULIEN
     src/routes/synthesis.js  # génération de synthèses // JULIEN
     src/ai/                  # client modèle d'IA (Ollama local ou API)
     src/audio/               # génération audio

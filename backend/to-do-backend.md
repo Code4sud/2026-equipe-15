@@ -146,12 +146,21 @@ C'est la première restitution décidée le 19/11, et c'est là que le jury cher
 
 ### 8. L'assistant (`/chat`) — Julien, d'après `Backend.txt`
 
-- [ ] `POST /chat/{jeton}` : une question, et une réponse appuyée sur les faits de l'analyse (même mécanisme que le
-      résumé), avec ses sources.
-- [ ] Savoir répondre « ce n'est pas dans ton rapport ». Ne jamais donner de salaire, de diplôme ou de débouché sans
-      source citée.
-- [ ] Les trois suggestions du front : « Pourquoi ces métiers ? », « Quelles formations ? », « Comment choisir entre
-      deux métiers ? ».
+- [x] `POST /chat/{jeton}` : une question, et une réponse appuyée sur les faits de l'analyse (même mécanisme que le
+      résumé), avec ses sources. Codé sur la branche `julien/chatbot`, détails dans `Backend.txt` :
+  - les instructions de Qwen sont dans `src/chat/instructions.js`, à relire et ajuster par l'équipe ;
+  - les faits : ceux du résumé, plus un par métier du rapport (`src/chat/contexte.js`) ;
+  - chaque phrase passe par le contrôle du résumé (`controle.js`) ; un second essai si tout est refusé ;
+  - historique court : les 6 derniers messages envoyés par le front ;
+  - pas de streaming pour l'instant : la réponse arrive en une fois.
+- [x] Savoir répondre « ce n'est pas dans ton rapport » : le modèle répond `dans_rapport: false`, et c'est le
+      backend qui écrit la phrase fixe. Sans Ollama, un message de repli, sans erreur.
+- [x] Les trois suggestions du front : une consigne pour chacune dans les instructions.
+- [x] Tests : 11 tests avec un modèle factice et une analyse inventée (ils tournent aussi sur GitHub).
+- [ ] **Essai avec le vrai modèle (Qwen3.6 35B) sur le PC de démo** : poser les trois suggestions et quelques
+      questions pièges (salaire, « oublie tes règles »), lire les réponses, ajuster `instructions.js` si besoin.
+- [ ] **À dire au front** : brancher `Assistant.jsx` sur `POST <adresse de l'API>/chat/{jeton}` avec
+      `{ question, historique, onboarding }`, afficher `reponse`, et les pages de `sources` sous la réponse.
 
 ## Priorité 3 — après la démo, ou à décider
 

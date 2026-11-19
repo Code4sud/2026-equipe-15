@@ -46,7 +46,8 @@ export const router = Router();
 
 // L'analyse est calculée à la première consultation, puis relue depuis
 // storage/outputs/{jeton}.json (jamais versionné), sauf si le PDF a changé.
-async function analyseDuJeton(jeton) {
+// Exportée pour routes/chat.js, qui partage ce cache.
+export async function analyseDuJeton(jeton) {
   const pdf = rapportDuJeton(jeton);
   if (!pdf) return null;
   const { outputs } = dossiersStockage();
