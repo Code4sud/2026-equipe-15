@@ -35,8 +35,8 @@ principale. La maquette donne l'agencement, pas les textes.
   est automatique dès qu'un `package.json` avec un script `build` est à la racine.
 - `index.html` garde la ligne du bandeau commun :
   `<script src="https://orientation.code4sud.fr/bandeau.js" data-equipe="15"></script>`.
-- Navigation par ancre (`HashRouter`) : `#/onboarding`, `#/`, `#/metier/:id`. GitHub Pages ne sait pas servir
-  les autres formes d'adresse.
+- Navigation par ancre (`HashRouter`) : `#/onboarding`, `#/`, `#/rapport/:page`, `#/metier/:id`. GitHub Pages ne
+  sait pas servir les autres formes d'adresse.
 - Un fichier de données inventées, importé au démarrage, et un petit module qui lit et écrit les choix du jeune
   dans `localStorage`.
 
@@ -137,7 +137,7 @@ Tout est écrit dans `localStorage` à chaque réponse, pas seulement à la fin.
 
 | Dans la maquette | Dans le site |
 | --- | --- |
-| Bouton « Documents » | Bouton « Ton rapport complet », qui ouvre le PDF du rapport |
+| Bouton « Documents » | Bouton « Ton rapport complet », qui ouvre le rapport dans la visionneuse du site |
 | « Liens utiles », en grand | Gardé, mais en plus petit |
 | Barre de recherche | Retirée sur téléphone |
 | Résumé avec 4 phrases | Gardé |
@@ -169,15 +169,16 @@ l'assistant dans la colonne de droite.
 à remplacer). À droite, le bouton « Ton rapport complet » avec une icône de document, et l'icône de compte. Sur
 téléphone, le bouton peut se réduire à son icône, avec le libellé pour les lecteurs d'écran.
 
-« Ton rapport complet » ouvre le PDF dans un nouvel onglet : le téléphone l'affiche avec son propre lecteur. Pas
-de visionneuse à coder. Avec les données inventées, le lien pointe vers un PDF d'exemple ou affiche « Ton rapport
-arrive bientôt ».
+« Ton rapport complet » ouvre la visionneuse du site à la première page (`#/rapport/1`), décrite plus bas.
 
 **2. Résumé de ton rapport.** Une carte avec l'étiquette « Mon rapport d'orientation », le titre « Résumé de ton
 rapport » et 4 phrases courtes, chacune précédée d'une coche.
 
 - Les 4 phrases viennent du backend (elles sont générées à partir du rapport et des choix de l'onboarding). Pour
   l'instant, elles sont dans le fichier de données.
+- Chaque phrase est cliquable : elle ouvre le rapport à la page d'où vient l'information, dans la visionneuse
+  du site (`#/rapport/5` pour la page 5). Le backend donne le numéro de page avec chaque phrase. Une petite
+  icône de document et « page 5 » au bout de la ligne montrent qu'on peut appuyer.
 - Chaque phrase parle d'un point fort ou d'une piste. Aucune ne parle d'un manque.
 - L'illustration de la maquette est facultative sur téléphone : la retirer si elle pousse le texte hors de
   l'écran.
@@ -237,11 +238,28 @@ orientation-regionsud.fr. Ouverture dans un nouvel onglet.
 - Le bouton flottant ne doit pas recouvrir les cases à cocher de « Tes premiers pas » : prévoir une marge en bas
   de page.
 
+### La visionneuse du rapport
+
+Une page du site, `#/rapport/:page`, qui affiche le PDF du rapport sans passer par le lecteur du téléphone. Le
+lecteur d'un téléphone ne sait pas ouvrir un PDF à une page donnée : c'est pour cela que le site affiche le
+rapport lui-même.
+
+- Le PDF est dessiné dans la page avec PDF.js (par exemple la bibliothèque `react-pdf`). Avec Vite, le fichier
+  « worker » de PDF.js doit être déclaré explicitement, sinon rien ne s'affiche.
+- Les pages sont affichées l'une sous l'autre, à la largeur de l'écran. On fait défiler avec le doigt.
+- À l'ouverture, la page demandée dans l'adresse est amenée en haut de l'écran.
+- En haut, une barre fixe : une flèche « Retour » vers la page d'accueil, et « Page 5 sur 17 ».
+- Ne dessiner que les pages proches de l'écran : 17 pages dessinées d'un coup ralentissent un téléphone.
+- Le zoom par pincement du navigateur suffit. Pas d'outil de zoom à coder.
+- Pendant le chargement : « Ton rapport arrive… ». Si le PDF n'est pas disponible : « Ton rapport n'est pas
+  disponible pour l'instant », avec le retour.
+- Avec les données inventées, la visionneuse affiche un PDF d'exemple inventé, jamais un vrai rapport.
+
 ### Les données lues par la page d'accueil
 
 | Bloc | Ce qu'il lit |
 | --- | --- |
-| Résumé | les 4 phrases |
+| Résumé | les 4 phrases, chacune avec son numéro de page dans le rapport |
 | Métiers par zone | les 5 zones avec leur temps de préparation, les métiers de chaque zone, le préféré de chaque zone |
 | Premiers pas | les préférés, et l'état coché ou non de chaque action |
 | Rapport complet | l'adresse du PDF |
@@ -251,6 +269,8 @@ orientation-regionsud.fr. Ouverture dans un nouvel onglet.
 - [ ] À 390 px, tous les blocs sont lisibles dans l'ordre indiqué, sans défilement horizontal.
 - [ ] Les 5 zones sont toujours affichées, y compris une zone vide et une zone sans préféré.
 - [ ] Un appui sur un métier préféré ouvre sa page.
+- [ ] Sur téléphone, un appui sur une phrase du résumé ouvre le rapport à la bonne page, et « Retour » ramène à
+      l'accueil.
 - [ ] Changer un préféré dans l'onboarding change la carte de la zone et la liste des premiers pas.
 - [ ] Une action cochée le reste après rechargement de la page.
 - [ ] Aucune carte ne mène à une page blanche.
@@ -260,7 +280,9 @@ orientation-regionsud.fr. Ouverture dans un nouvel onglet.
 
 Maquette pour le jury : une ou deux pages faites à la main pour les métiers préférés des données inventées.
 L'intitulé, la description du rapport, le temps de préparation, puis des informations régionales (salaire, durée
-des études, formations) avec le lien vers la fiche d'orientation-regionsud.fr d'où elles viennent. À détailler.
+des études, formations). En bas de la page, un bloc « D'où viennent ces informations » avec les liens vers les
+pages d'orientation-regionsud.fr utilisées. La même règle vaut pour toute page qui affiche une information venue
+d'ailleurs que du rapport : ses sources sont en bas de page. À détailler.
 
 ## Étape 4 — Les pages des recommandations
 
