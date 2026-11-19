@@ -21,17 +21,36 @@ export const SECTIONS = {
     titreEnPremiereLigne: true,
     graphique: 'histogramme',
     echelleMax: 7.0, // notées de 0 à 7 dans le rapport
-    labels: [
-      'Originalité',
-      'Raisonnement déductif',
-      'Raisonnement inductif',
-      'Flexibilité des catégories',
-      'Facilité avec les nombres',
-      'Mémorisation',
-      'Visualisation',
-      'Attention sélective',
-      'Partage du temps',
+    // Deux gabarits de rapport existent, avec deux jeux de 9 aptitudes (dans
+    // l'ordre des barres, de gauche à droite). Le gabarit est reconnu aux
+    // libellés écrits sous les barres ; aucun ne correspond -> pas de valeur.
+    gabarits: [
+      [
+        'Originalité',
+        'Raisonnement déductif',
+        'Raisonnement inductif',
+        'Flexibilité des catégories',
+        'Facilité avec les nombres',
+        'Mémorisation',
+        'Visualisation',
+        'Attention sélective',
+        'Partage du temps',
+      ],
+      [
+        'Compréhension orale',
+        'Compréhension écrite',
+        'Expression orale',
+        'Expression écrite',
+        'Fluidité des idées',
+        'Originalité',
+        'Sensibilité aux problèmes',
+        'Raisonnement déductif',
+        'Raisonnement inductif',
+      ],
     ],
+    get labels() {
+      return this.gabarits[0]; // libellés de repli quand le graphique est illisible
+    },
   },
   personnalite: {
     titre: 'Personnalité',
@@ -93,7 +112,7 @@ export function pagesAvecTitreEnPremiereLigne(pages, cfg) {
   return resultat;
 }
 
-// Retourne la mention « Rdv … » du rapport (ex. « Rdv FICTIF » en test).
+// Retourne la mention « Rdv … » du rapport.
 export function extraireRdv(pages) {
   for (const page of pages) {
     const m = page.texte.match(/Rdv\s*n?°?\s*[A-Za-z0-9-]+/);

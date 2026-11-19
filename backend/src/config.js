@@ -8,17 +8,24 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const config = {
   port: Number(process.env.PORT || 8000),
-  // Auth Bearer : si défini, chaque requête exige « Authorization: Bearer <token> ».
-  // Laissé vide en dev : l'API est alors ouverte (les tests passent sans token).
-  // Lu à chaque appel (getter) : les tests peuvent changer API_TOKEN à chaud.
-  get apiToken() {
-    return process.env.API_TOKEN || null;
-  },
   // Origines CORS autorisées (séparées par des virgules, « * » = toutes, défaut)
   corsAllowOrigins: (process.env.CORS_ALLOW_ORIGINS || '*').split(',').map((s) => s.trim()),
-  // Dossier de stockage des PDF déposés et des analyses générées
-  storage: process.env.BACKEND_STORAGE || path.join(__dirname, '..', 'storage'),
-  // Taille maximale d'un PDF accepté, en octets (20 Mo par défaut, et de toute
-  // façon sous les 50 Mo interdits dans le dépôt)
-  maxUploadOctets: (parseInt(process.env.MAX_UPLOAD_MO || '20', 10)) * 1024 * 1024,
+  // Lus à chaque appel (getters) : les tests les changent à chaud.
+  // Dossier des analyses générées (cache JSON, jamais versionné)
+  get storage() {
+    return process.env.BACKEND_STORAGE || path.join(__dirname, '..', 'storage');
+  },
+  // Dossier des Rapports des Possibles (PDF) : notre « base » de rapports.
+  // Par défaut prive/ à la racine du dépôt, ignoré par git.
+  get rapportsDir() {
+    return process.env.RAPPORTS_DIR || path.join(__dirname, '..', '..', 'prive');
+  },
+  // Table jeton -> fichier PDF (un jeton par lien envoyé par mail).
+  get liensFichier() {
+    return process.env.LIENS_FICHIER || path.join(this.rapportsDir, 'liens.json');
+  },
+  // Table des métiers O*NET en français (tableur du Centre, dans prive/).
+  get onetFichier() {
+    return process.env.ONET_FICHIER || path.join(this.rapportsDir, 'table-metiers-onet-fr-jobzones.xlsx');
+  },
 };

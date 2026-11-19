@@ -4,9 +4,8 @@
 //     cd backend
 //     npm start            # ou : node server.js  (PORT=8000 par défaut)
 //
-// Authentification : voir src/auth.js — API_TOKEN dans backend/.env.
-// Si API_TOKEN est défini, chaque requête exige « Authorization: Bearer <token> ».
-// Sinon mode dev ouvert. Voir .env.example.
+// Pas d'authentification : le jeune ouvre sa page depuis un lien reçu par
+// mail, qui porte un jeton aléatoire (voir src/liens.js et `npm run lien`).
 
 import 'dotenv/config';
 import path from 'node:path';
@@ -14,7 +13,6 @@ import { pathToFileURL } from 'node:url';
 import express from 'express';
 import cors from 'cors';
 import { config } from './src/config.js';
-import { verifierToken } from './src/auth.js';
 import { router as reportRouter } from './src/routes/report.js';
 
 const app = express();
@@ -25,15 +23,13 @@ const app = express();
 app.use(cors({ origin: config.corsAllowOrigins.includes('*') ? true : config.corsAllowOrigins }));
 
 app.use(express.json({ limit: '1mb' }));
-app.use(verifierToken);
 
 app.use('/report', reportRouter);
 
 app.get('/', (req, res) => {
   res.json({
     projet: 'Rapport des Possibles augmenté — équipe 15',
-    auth: config.apiToken ? 'active' : 'desactivee (mode dev)',
-    routes: ['/report', '/report/upload'],
+    routes: ['/report/{jeton}', '/report/{jeton}/scores'],
   });
 });
 

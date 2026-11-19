@@ -19,7 +19,11 @@ import {
   extraireAvertissement,
 } from './sections.js';
 import { lireScores } from './scores.js';
-import { extraireMetiers } from './metiers.js';
+import { extraireMetiers, pagesDuChamp } from './metiers.js';
+
+// À augmenter à chaque changement de la forme de l'analyse : les analyses en
+// cache d'une version précédente sont recalculées.
+export const VERSION_EXTRACTION = 3;
 
 export async function analyserRapport(chemin, nomFichier, idAnalyse = null) {
   const pages = await extrairePages(chemin);
@@ -28,6 +32,7 @@ export async function analyserRapport(chemin, nomFichier, idAnalyse = null) {
 
   const analyse = {
     id: idAnalyse || crypto.randomUUID().replace(/-/g, ''),
+    version_extraction: VERSION_EXTRACTION,
     fichier: nomFichier,
     nb_pages: pages.length,
     rdv: extraireRdv(pages),
@@ -48,8 +53,9 @@ export async function analyserRapport(chemin, nomFichier, idAnalyse = null) {
     analyse[champ] = scores;
   }
 
-  analyse.metiers = extraireMetiers(pages, sections.champ || [], notes);
+  analyse.metiers = extraireMetiers(pages, pagesDuChamp(pages, sections), notes);
   analyse.avertissement = extraireAvertissement(pages, sections.avertissement || []);
+  analyse.avertissement_page = analyse.avertissement ? sections.avertissement[sections.avertissement.length - 1] : null;
   analyse.notes = notes;
   return analyse;
 }

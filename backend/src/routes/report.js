@@ -1,74 +1,226 @@
-// Routes /report : dépôt d'un Rapport des Possibles (PDF) et analyse. // JF
+// Routes /report : analyse d'un Rapport des Possibles déjà rangé dans notre
+// base (prive/), désigné par le jeton du lien reçu par mail. // JF
 //
-// POST /report/upload      : dépose un PDF (multipart), sauvegarde l'analyse
-//                            JSON dans `storage/outputs/` et la retourne
-// GET  /report             : liste les identifiants d'analyses générées
-// GET  /report/{id}        : relit une analyse complète
-// GET  /report/{id}/scores : uniquement les scores des graphiques, avec leurs
-//                            sources (page, section, type de lecture)
+// GET  /report/{jeton}        : analyse complète (JSON avec sources)
+// GET  /report/{jeton}/scores : uniquement les scores des graphiques, avec leurs
+//                               sources (page, section, type de lecture)
+// GET  /report/{jeton}/pdf    : le PDF du rapport, pour la visionneuse du site
+//                               (PDF.js : lecture par morceaux acceptée)
+// POST /report/{jeton}/resume : résumé écrit (4 phrases avec leur page, et un
+//                               texte), corps facultatif { onboarding } ;
+//                               donne audio_url si la synthèse vocale est réglée
+// GET  /report/{jeton}/audio/{empreinte} : le texte du résumé lu à voix haute
+//                               (WAV, Piper), créé au premier appel
+// GET  /report/{jeton}/metiers?q=… : recherche de métiers dans la table O*NET,
+//                               pour l'onboarding (métiers vus avec le psychologue)
+//
+// Pas d'authentification : le jeton (aléatoire, 128 bits) est la seule clé.
+// Aucune route ne liste les jetons ni les rapports, et un jeton mal formé ou
+// inconnu reçoit la même réponse 404.
 
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { Router } from 'express';
-import multer from 'multer';
-import { ErreurUpload, MAX_UPLOAD_OCTETS, sauvegarderUpload } from '../upload.js';
-import { analyserRapport } from '../report/analyzer.js';
+import { analyserRapport, VERSION_EXTRACTION } from '../report/analyzer.js';
 import { dossiersStockage } from '../storage.js';
+import { rapportDuJeton } from '../liens.js';
+import { genererResume } from '../resume/generer.js';
+import { nettoyerOnboarding } from '../resume/faits.js';
+import { configOllama } from '../ai/ollama.js';
+import { audioDisponible, empreinteAudio, EMPREINTE_VALIDE, fichierAudio, ErreurAudio } from '../audio/synthese.js';
+import { tableOnet, controlerMetiers, chercherMetiers, cleIntitule } from '../onet/table.js';
+
+// Table O*NET, ou null si elle est absente ou illisible (l'analyse reste
+// servie sans le contrôle).
+function tableOuNull() {
+  try {
+    return tableOnet();
+  } catch (e) {
+    console.error(`Table O*NET illisible : ${e.message}`);
+    return null;
+  }
+}
 
 export const router = Router();
 
-// Identifiants d'analyse = 32 caractères hexadécimaux (uuid4 sans tirets),
-// pour éviter toute lecture de fichier hors de storage/outputs.
-const ID_VALIDE = /^[0-9a-f]{32}$/;
-
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_UPLOAD_OCTETS, files: 1 },
-});
-
-function cheminAnalyse(analysisId) {
-  if (!ID_VALIDE.test(analysisId)) return null;
-  const chemin = path.join(dossiersStockage().outputs, `${analysisId}.json`);
-  return fs.existsSync(chemin) ? chemin : null;
+// L'analyse est calculée à la première consultation, puis relue depuis
+// storage/outputs/{jeton}.json (jamais versionné), sauf si le PDF a changé.
+async function analyseDuJeton(jeton) {
+  const pdf = rapportDuJeton(jeton);
+  if (!pdf) return null;
+  const { outputs } = dossiersStockage();
+  const cache = path.join(outputs, `${jeton}.json`);
+  if (fs.existsSync(cache) && fs.statSync(cache).mtimeMs >= fs.statSync(pdf).mtimeMs) {
+    const enCache = JSON.parse(fs.readFileSync(cache, 'utf8'));
+    if (enCache.version_extraction === VERSION_EXTRACTION) return enCache;
+  }
+  const analyse = await analyserRapport(pdf, path.basename(pdf), jeton);
+  fs.mkdirSync(outputs, { recursive: true });
+  fs.writeFileSync(cache, JSON.stringify(analyse, null, 2));
+  return analyse;
 }
 
-router.post('/upload', upload.single('fichier'), async (req, res) => {
+// Données personnelles : ni cache navigateur ou proxy, ni jeton transmis
+// dans l'en-tête Referer vers d'autres sites.
+router.use((_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  res.set('Referrer-Policy', 'no-referrer');
+  next();
+});
+
+async function repondre(req, res, extraire) {
   try {
-    if (!req.file) return res.status(400).json({ detail: 'Champ « fichier » (PDF) manquant' });
-    const cheminPdf = sauvegarderUpload(req.file.buffer, req.file.originalname);
-    const analyse = await analyserRapport(cheminPdf, req.file.originalname);
-    const { outputs } = dossiersStockage();
-    fs.mkdirSync(outputs, { recursive: true });
-    fs.writeFileSync(path.join(outputs, `${analyse.id}.json`), JSON.stringify(analyse, null, 2));
-    res.status(201).json(analyse);
+    const analyse = await analyseDuJeton(req.params.jeton);
+    if (!analyse) return res.status(404).json({ detail: 'Rapport introuvable' });
+    res.json(extraire(analyse));
   } catch (e) {
-    if (e instanceof ErreurUpload) return res.status(400).json({ detail: e.message });
     console.error(e);
-    res.status(500).json({ detail: "Erreur interne pendant l'analyse du PDF" });
+    res.status(500).json({ detail: "Erreur interne pendant l'analyse du rapport" });
+  }
+}
+
+// `rapport_pdf_url` (contrat) : adresse du PDF, relative à la racine de l'API.
+// Chaque métier est contrôlé contre la table O*NET (`onet` sur le métier,
+// bilan dans `controle_onet`) ; un métier introuvable ajoute une note.
+router.get('/:jeton', (req, res) =>
+  repondre(req, res, (analyse) => {
+    const { metiers, controle } = controlerMetiers(analyse.metiers, tableOuNull());
+    const notes = controle.introuvables.map((nom) => `Champ des possibles — métier introuvable dans la table O*NET : « ${nom} »`);
+    return {
+      ...analyse,
+      metiers,
+      notes: [...analyse.notes, ...notes],
+      controle_onet: controle,
+      rapport_pdf_url: `/report/${analyse.id}/pdf`,
+    };
+  })
+);
+
+// Recherche pour l'écran « Le psychologue t'a parlé d'autres métiers ? ».
+// Derrière le jeton : la table appartient au Centre, elle ne doit pas pouvoir
+// être parcourue par n'importe qui. Renvoie l'intitulé, le code O*NET, et l'id
+// du métier s'il est déjà dans le rapport.
+router.get('/:jeton/metiers', async (req, res) => {
+  try {
+    const analyse = await analyseDuJeton(req.params.jeton);
+    if (!analyse) return res.status(404).json({ detail: 'Rapport introuvable' });
+    const table = tableOuNull();
+    if (!table) return res.status(503).json({ detail: 'Table des métiers absente' });
+    const limite = Math.min(Math.max(parseInt(req.query.limite, 10) || 10, 1), 20);
+    const idDansRapport = new Map(analyse.metiers.map((m) => [cleIntitule(m.nom), m.id]));
+    const resultats = chercherMetiers(table, String(req.query.q ?? ''), limite).map((m) => ({
+      nom: m.job_fr,
+      code: m.code,
+      dans_rapport: idDansRapport.get(m.cle) ?? null,
+    }));
+    res.json({ resultats });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ detail: 'Erreur interne pendant la recherche de métiers' });
   }
 });
 
-router.get('', (req, res) => {
-  // Identifiants des analyses déjà générées (fichiers JSON de storage/outputs).
-  const { outputs } = dossiersStockage();
-  if (!fs.existsSync(outputs)) return res.json([]);
-  res.json(fs.readdirSync(outputs).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort());
+// Le PDF lui-même. Même contrôle du jeton et même 404 que les autres routes.
+// Nom de fichier neutre : le nom rangé dans prive/ (numéro du rapport) ne sort
+// pas. Les requêtes « Range » de PDF.js sont servies (206) ; leurs en-têtes
+// sont exposés au front, servi depuis une autre origine.
+router.get('/:jeton/pdf', (req, res) => {
+  const pdf = rapportDuJeton(req.params.jeton);
+  if (!pdf) return res.status(404).json({ detail: 'Rapport introuvable' });
+  res.set({
+    'Content-Type': 'application/pdf',
+    'Content-Disposition': 'inline; filename="rapport.pdf"',
+    'X-Content-Type-Options': 'nosniff',
+    'Access-Control-Expose-Headers': 'Accept-Ranges, Content-Range, Content-Length',
+  });
+  res.sendFile(pdf, { cacheControl: false }, (err) => {
+    if (!err) return;
+    if (!res.headersSent) return res.status(404).json({ detail: 'Rapport introuvable' });
+    if (err.code !== 'ECONNABORTED') console.error(err); // ECONNABORTED : PDF.js a annulé la lecture
+  });
 });
 
-router.get('/:analysisId', (req, res) => {
-  const chemin = cheminAnalyse(req.params.analysisId);
-  if (!chemin) return res.status(404).json({ detail: 'Analyse inconnue' });
-  res.json(JSON.parse(fs.readFileSync(chemin, 'utf8')));
-});
-
-router.get('/:analysisId/scores', (req, res) => {
-  // Les scores des trois graphiques du rapport, avec leurs sources.
-  const chemin = cheminAnalyse(req.params.analysisId);
-  if (!chemin) return res.status(404).json({ detail: 'Analyse inconnue' });
-  const analyse = JSON.parse(fs.readFileSync(chemin, 'utf8'));
-  res.json({
+router.get('/:jeton/scores', (req, res) =>
+  repondre(req, res, (analyse) => ({
     interets_riasec: analyse.interets_riasec,
     aptitudes: analyse.aptitudes,
     personnalite_hexaco: analyse.personnalite_hexaco,
-  });
+  }))
+);
+
+// Le résumé dépend des choix de l'onboarding (gardés dans le navigateur du
+// jeune) : le front les envoie dans le corps. Mis en cache par jeton, choix et
+// modèle ; un résumé entièrement en repli (Ollama absent) n'est pas gardé,
+// pour que l'IA soit réessayée à l'appel suivant.
+router.post('/:jeton/resume', async (req, res) => {
+  try {
+    const analyse = await analyseDuJeton(req.params.jeton);
+    if (!analyse) return res.status(404).json({ detail: 'Rapport introuvable' });
+    const onboarding = req.body?.onboarding ?? null;
+    const cle = crypto
+      .createHash('sha256')
+      .update(JSON.stringify({ choix: nettoyerOnboarding(onboarding, analyse), modele: configOllama().modele }))
+      .digest('hex')
+      .slice(0, 16);
+    const cache = path.join(dossiersStockage().outputs, `${req.params.jeton}-resume-${cle}.json`);
+    const pdf = rapportDuJeton(req.params.jeton);
+    let resume;
+    if (fs.existsSync(cache) && fs.statSync(cache).mtimeMs >= fs.statSync(pdf).mtimeMs) {
+      resume = JSON.parse(fs.readFileSync(cache, 'utf8'));
+    } else {
+      resume = await genererResume(analyse, onboarding);
+      if (resume.genere_par.mode !== 'repli') fs.writeFileSync(cache, JSON.stringify(resume, null, 2));
+    }
+    res.json({ ...resume, audio_url: preparerAudio(req.params.jeton, resume.texte) });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ detail: 'Erreur interne pendant la génération du résumé' });
+  }
+});
+
+// Audio du résumé. Le texte à lire est gardé à côté des analyses
+// ({jeton}-texte-{empreinte}.txt) quand le résumé est demandé ; l'audio est
+// créé au premier GET puis relu ({jeton}-audio-{empreinte}.wav). Sans voix
+// réglée (PIPER_MODELE), pas d'adresse audio : le front affiche le texte seul.
+function preparerAudio(jeton, texte) {
+  if (!audioDisponible() || !texte) return null;
+  const empreinte = empreinteAudio(texte);
+  const { outputs } = dossiersStockage();
+  const fichier = path.join(outputs, `${jeton}-texte-${empreinte}.txt`);
+  if (!fs.existsSync(fichier)) {
+    fs.mkdirSync(outputs, { recursive: true });
+    fs.writeFileSync(fichier, texte);
+  }
+  return `/report/${jeton}/audio/${empreinte}`;
+}
+
+router.get('/:jeton/audio/:empreinte', async (req, res) => {
+  const { jeton, empreinte } = req.params;
+  if (!rapportDuJeton(jeton) || !EMPREINTE_VALIDE.test(empreinte)) {
+    return res.status(404).json({ detail: 'Rapport introuvable' });
+  }
+  if (!audioDisponible()) return res.status(503).json({ detail: 'Synthèse vocale non configurée' });
+  const { outputs } = dossiersStockage();
+  const texte = path.join(outputs, `${jeton}-texte-${empreinte}.txt`);
+  if (!fs.existsSync(texte)) return res.status(404).json({ detail: 'Audio introuvable : redemande le résumé' });
+  try {
+    const wav = await fichierAudio(fs.readFileSync(texte, 'utf8'), outputs, `${jeton}-audio-${empreinte}`);
+    res.set({
+      'Content-Type': 'audio/wav',
+      'Content-Disposition': 'inline; filename="resume.wav"',
+      'X-Content-Type-Options': 'nosniff',
+      'Access-Control-Expose-Headers': 'Accept-Ranges, Content-Range, Content-Length',
+    });
+    res.sendFile(wav, { cacheControl: false }, (err) => {
+      if (err && err.code !== 'ECONNABORTED' && !res.headersSent) res.status(500).json({ detail: 'Erreur interne' });
+    });
+  } catch (e) {
+    if (e instanceof ErreurAudio) {
+      console.error(`Synthèse vocale : ${e.message}`);
+      return res.status(503).json({ detail: 'Synthèse vocale indisponible' });
+    }
+    console.error(e);
+    res.status(500).json({ detail: 'Erreur interne pendant la synthèse vocale' });
+  }
 });
