@@ -38,8 +38,13 @@ _Deux ou trois phrases : le problème, la solution, pour qui._
 
 ## Lancer le projet
 
+Le backend est en **Node.js + Express** (`backend/`), le frontend est servi séparément.
+
 ```bash
-# Comment installer et démarrer, en 5 lignes maximum
+cd backend && npm install        # installe les dépendances (Node ≥ 20)
+cp .env.example .env             # optionnel : API_TOKEN=… pour activer l'auth Bearer
+npm start                        # API sur http://localhost:8000 (POST /report/upload…)
+npm test                         # tests de bout en bout avec un PDF fictif « Rdv FICTIF »
 ```
 
 ## Publier sur le site du hackathon
