@@ -39,7 +39,10 @@ _Deux ou trois phrases : le problème, la solution, pour qui._
 ## Lancer le projet
 
 ```bash
-# Comment installer et démarrer, en 5 lignes maximum
+# Node.js 22 ou plus récent
+npm ci
+npm run dev
+# Ouvrir http://127.0.0.1:5173/2026-equipe-15/
 ```
 
 ## Publier sur le site du hackathon
