@@ -5,6 +5,8 @@ import { useOnboarding } from '../lib/stockage.js'
 import { ZONES } from '../config.js'
 
 export default function Resume() {
+  const [onboarding] = useOnboarding()
+  const nombrePreferes = Object.values(onboarding.favoris).filter(Boolean).length
   return (
     <section aria-labelledby="titre-resume" className="carte apparait overflow-hidden p-5 sm:p-7">
       <div>
@@ -14,7 +16,9 @@ export default function Resume() {
         </h2>
 
         <ul className="mt-4 divide-y divide-ligne border-t border-ligne">
-          {resume.points.map((point) => (
+          {/* Le dernier point de l'exemple décrit des choix de démonstration.
+              Les choix réels du jeune sont affichés juste après, sans source PDF. */}
+          {resume.points.slice(0, 3).map((point) => (
             <li key={point.texte}>
               <Link
                 to={`/rapport/${point.page}`}
@@ -31,6 +35,12 @@ export default function Resume() {
               </Link>
             </li>
           ))}
+          <li className="flex min-h-11 items-start gap-3 py-3">
+            <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-coche-fond text-coche">
+              <Pencil size={14} aria-hidden="true" />
+            </span>
+            <span>Tu as retenu {nombrePreferes} métier{nombrePreferes > 1 ? 's' : ''} préféré{nombrePreferes > 1 ? 's' : ''}. Tu peux changer d'avis.</span>
+          </li>
         </ul>
 
         <Link

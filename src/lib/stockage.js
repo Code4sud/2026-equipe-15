@@ -1,9 +1,8 @@
 // Choix du jeune, gardés dans le navigateur (localStorage). Tout est protégé :
 // en navigation privée, le site doit marcher même si rien ne s'enregistre.
 import { useCallback, useEffect, useState } from 'react'
-import { onboardingParDefaut } from './donnees.js'
+export { useOnboarding } from './onboarding-context.jsx'
 
-const CLE_ONBOARDING = 'possibles.onboarding'
 const CLE_PREMIERS_PAS = 'possibles.premiers-pas'
 
 function lire(cle, defaut) {
@@ -27,10 +26,6 @@ function useStocke(cle, defaut) {
   const [valeur, setValeur] = useState(() => lire(cle, defaut))
   useEffect(() => ecrire(cle, valeur), [cle, valeur])
   return [valeur, setValeur]
-}
-
-export function useOnboarding() {
-  return useStocke(CLE_ONBOARDING, onboardingParDefaut)
 }
 
 export function usePremiersPasCoches() {

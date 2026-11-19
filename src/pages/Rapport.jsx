@@ -72,6 +72,7 @@ export default function Rapport() {
         </div>
       ) : (
         <Document
+          suspense={false}
           file={pdfUrl}
           loading={message('Ton rapport arrive…')}
           error={message("Ton rapport n'est pas disponible pour l'instant.")}
