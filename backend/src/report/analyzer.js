@@ -19,7 +19,7 @@ import {
   extraireAvertissement,
 } from './sections.js';
 import { lireScores } from './scores.js';
-import { extraireMetiers } from './metiers.js';
+import { extraireMetiers, pagesDuChamp } from './metiers.js';
 
 export async function analyserRapport(chemin, nomFichier, idAnalyse = null) {
   const pages = await extrairePages(chemin);
@@ -48,7 +48,7 @@ export async function analyserRapport(chemin, nomFichier, idAnalyse = null) {
     analyse[champ] = scores;
   }
 
-  analyse.metiers = extraireMetiers(pages, sections.champ || [], notes);
+  analyse.metiers = extraireMetiers(pages, pagesDuChamp(pages, sections), notes);
   analyse.avertissement = extraireAvertissement(pages, sections.avertissement || []);
   analyse.notes = notes;
   return analyse;

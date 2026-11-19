@@ -1,32 +1,36 @@
 Backend — Node.js + Express (depuis le 19/11, la stack Python/FastAPI est abandonnée).
 
-Rôle : recevoir un Rapport des Possibles (PDF), en extraire les scores des
-graphiques et les métiers sous forme de JSON avec leurs sources, et plus
-tard dialoguer avec une IA et générer des restitutions personnalisées
-(texte, audio, fiches interactives).
+Rôle : lire un Rapport des Possibles (PDF) déjà rangé dans notre base, en
+extraire les scores des graphiques et les métiers sous forme de JSON avec
+leurs sources, et plus tard dialoguer avec une IA et générer des
+restitutions personnalisées (texte, audio, fiches interactives).
 
 Lancer :
     cd backend
     npm install
     npm start          # API sur http://localhost:8000
-    npm test           # tests de bout en bout (PDF fictif « Rdv FICTIF »)
+    npm test           # tests sur les rapports de prive/ (sautés si prive/ est vide)
+    npm run lien -- rapport.pdf   # crée le jeton du lien à envoyer par mail
 
-Auth : API_TOKEN dans backend/.env (voir .env.example). Si défini, chaque
-requête exige « Authorization: Bearer <API_TOKEN> ». Vide = mode dev ouvert.
+Accès : pas d'authentification. Le jeune ouvre sa page depuis un lien reçu
+par mail, qui porte un jeton aléatoire (32 caractères hexadécimaux). Pour
+l'instant, la « base » est le dossier prive/ (ignoré par git) : les PDF, et
+prive/liens.json, la table jeton -> fichier écrite par `npm run lien`.
+Le jeton est la seule clé : ne jamais le dériver du numéro de rapport, ne
+jamais ajouter de route qui liste les rapports ou les jetons.
 
 backend/
-├── package.json            # dépendances (express, multer, cors, dotenv, pdfjs-dist)
+├── package.json            # dépendances (express, cors, dotenv, pdfjs-dist)
 ├── package-lock.json
-├── server.js               # point d'entrée Express (CORS, auth, routes)
+├── server.js               # point d'entrée Express (CORS, routes)
 ├── .env.example            # noms des variables d'env, sans valeur (.env ignoré)
 ├── Backend.txt             # ce fichier
 │
 ├── src/
-│   ├── config.js           # variables d'environnement (PORT, API_TOKEN, CORS, BACKEND_STORAGE, MAX_UPLOAD_MO)
-│   ├── auth.js             # middleware Bearer (verifierToken)
-│   ├── storage.js          # dossiers storage/uploads et storage/outputs
+│   ├── config.js           # variables d'environnement (PORT, CORS, BACKEND_STORAGE, RAPPORTS_DIR, LIENS_FICHIER)
+│   ├── liens.js            # jetons des liens envoyés par mail : jeton -> PDF de prive/
+│   ├── storage.js          # dossier storage/outputs (cache des analyses)
 │   ├── text.js             # normaliser() : comparaison de titres/mots-clés sans accents
-│   ├── upload.js           # dépôt d'un PDF reçu dans storage/uploads (jamais versionné)
 │   ├── pdfReader.js        # lecture bas niveau du PDF (pdfjs-dist) : texte, lignes stylées,
 │   │                       #   tracés vectoriels (radars), rectangles pleins (histogrammes)
 │   ├── report/
@@ -35,22 +39,27 @@ backend/
 │   │   ├── metiers.js      # champ des possibles : zones et métiers (lignes en gras)
 │   │   └── analyzer.js     # analyserRapport() : orchestration -> JSON d'analyse
 │   └── routes/
-│       └── report.js       # POST /report/upload, GET /report, GET /report/{id}, GET /report/{id}/scores
-│                           # (chat.py et synthesis.py viendront ici : /chat, /synthesis)
+│       └── report.js       # GET /report/{jeton}, GET /report/{jeton}/scores
+│                           # (chat.js et synthesis.js viendront ici : /chat, /synthesis)
+│
+├── scripts/
+│   └── creerLien.js        # npm run lien -- <fichier.pdf> : jeton ajouté à prive/liens.json
 │
 ├── tests/
-│   ├── fixtures/genererRapportFictif.js   # génère un PDF fictif en pur JS (« Rdv FICTIF »)
-│   └── report.test.js                     # tests node --test de bout en bout
+│   ├── report.test.js                     # routes /report et jetons, sur les PDF de prive/
+│   └── rapports-reels.test.js             # invariants sur les vrais PDF de prive/ (local seulement,
+│                                          #   sauté si prive/ est vide ; aucune valeur réelle écrite)
 │
 └── storage/
-    ├── uploads/            # PDF déposés (ignoré par git, .gitkeep seulement)
-    └── outputs/            # analyses JSON générées (idem)
+    ├── uploads/            # plus utilisé (l'upload a été retiré), gardé pour les garde-fous
+    └── outputs/            # analyses JSON en cache, une par jeton (ignoré par git)
 
 Routes actuelles :
-    POST /report/upload      : dépose un PDF (multipart, champ « fichier »), retourne l'analyse (201)
-    GET  /report             : liste les identifiants d'analyses
-    GET  /report/{id}        : analyse complète (JSON avec sources)
-    GET  /report/{id}/scores : les 3 graphiques (RIASEC, aptitudes, HEXACO) avec leurs sources
+    GET  /report/{jeton}        : analyse complète (JSON avec sources), calculée à la
+                                  première consultation puis relue depuis storage/outputs/
+    GET  /report/{jeton}/scores : les 3 graphiques (RIASEC, aptitudes, HEXACO) avec leurs sources
+    Jeton mal formé ou inconnu : 404 « Rapport introuvable », toujours la même réponse.
+    Réponses en Cache-Control: no-store et Referrer-Policy: no-referrer (données personnelles).
 
 À venir (mêmes dossiers) :
     src/routes/chat.js       # questions à l'IA sur une analyse // JULIEN

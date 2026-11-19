@@ -6,8 +6,11 @@
 // - le texte de chaque page ;
 // - les lignes avec leur position et leur style (gras) ;
 // - les mots avec leur position (étiquettes des graphiques) ;
-// - les tracés vectoriels fermés (polygones des radars) ;
-// - les rectangles pleins (barres des histogrammes).
+// - le texte pivoté à part (libellés en biais sous l'histogramme) ;
+// - les tracés vectoriels fermés (polygones des radars), avec la couleur et
+//   l'épaisseur du trait et la couleur de fond ;
+// - les rectangles pleins (barres des histogrammes, encadrés), avec leur couleur ;
+// - les segments droits tracés (lignes de grille de l'histogramme).
 //
 // Équivalent Node de pdfplumber : pdfjs-dist (texte via getTextContent,
 // tracés via getOperatorList). Coordonnées converties en origine
@@ -49,7 +52,24 @@ export async function extrairePages(chemin) {
       const opList = await page.getOperatorList();
       const fontes = mapFontes(page, doc, opList);
       const contenu = await page.getTextContent();
-      const { lignes, texte } = extraireLignes(contenu, fontes, { hauteur, X, Y });
+      // Texte pivoté (étiquettes en biais sous l'histogramme) : mis à part,
+      // sinon le regroupement par ligne le mélange au texte horizontal.
+      const pivote = (it) => Math.abs(it.transform[1]) > 0.01;
+      const textesPivotes = contenu.items
+        .filter((it) => pivote(it) && it.str.trim())
+        .map((it) => {
+          const [a, b] = it.transform;
+          const n = Math.hypot(a, b) || 1;
+          const x = X(it.transform[4]);
+          const y = Y(it.transform[5]);
+          // Fin du texte (côté barre) : origine + largeur dans la direction du texte.
+          return { texte: it.str.trim(), x, y, xFin: x + (it.width * a) / n, yFin: y - (it.width * b) / n };
+        });
+      const { lignes, texte } = extraireLignes(
+        { items: contenu.items.filter((it) => !pivote(it)) },
+        fontes,
+        { hauteur, X, Y }
+      );
       const mots = contenu.items.map((it) => {
         const x0 = X(it.transform[4]);
         const haut = Y(it.transform[5]) - it.height;
@@ -58,9 +78,9 @@ export async function extrairePages(chemin) {
       // Les tracés vectoriels sont lus dans la liste d'opérateurs avec la CTM
       // complète (init : flip top-left de pdfjs) : coordonnées finales en
       // (x, top), origine haut-gauche comme pdfplumber.
-      const { courbes, barres } = extraireTraces(opList, { vx0, vy0: page.view[1], vy1 });
+      const { courbes, barres, traits } = extraireTraces(opList, { vx0, vy0: page.view[1], vy1 });
 
-      pages.push({ numero: n, texte, largeur, hauteur, lignes, mots, courbes, barres });
+      pages.push({ numero: n, texte, largeur, hauteur, lignes, mots, textesPivotes, courbes, barres, traits });
     }
     return pages;
   } finally {
@@ -174,6 +194,7 @@ function extraireTraces(opList, { vx0, vy0, vy1 }) {
   const OPS = pdfjs.OPS;
   const courbes = [];
   const barres = [];
+  const traits = []; // segments droits tracés (lignes de grille de l'histogramme)
 
   let sousPaths = []; // [{ pts: [[x, top]...], cur, start, rect }]
   let courant = null;
@@ -183,6 +204,10 @@ function extraireTraces(opList, { vx0, vy0, vy1 }) {
   // en (x, top), origine haut-gauche de la page.
   let ctm = [1, 0, 0, -1, 0, vy1]; // [a, b, c, d, e, f]
   const ctmStack = [];
+  // Style courant (sauvegardé avec la CTM par q/Q) : couleur du trait,
+  // couleur de remplissage (#rrggbb) et épaisseur du trait.
+  let style = { trait: '#000000', fond: '#000000', epaisseur: 1 };
+  const styleStack = [];
   const mul = (m1, m2) => [
     m1[0] * m2[0] + m1[2] * m2[1],
     m1[1] * m2[0] + m1[3] * m2[1],
@@ -271,9 +296,12 @@ function extraireTraces(opList, { vx0, vy0, vy1 }) {
       let rect = sp.rect;
       if (!rect && points.length === 4) rect = detecterRect(points);
       if (rect) {
-        if (rempli) barres.push({ ...rect });
+        if (rempli) barres.push({ ...rect, couleurFond: style.fond });
       } else if (points.length >= 3) {
-        courbes.push({ points, remplie: rempli });
+        courbes.push({ points, remplie: rempli, couleurTrait: style.trait, couleurFond: style.fond, epaisseur: style.epaisseur });
+      } else if (points.length === 2 && !rempli) {
+        const [[xa, ya], [xb, yb]] = points;
+        traits.push({ x0: Math.min(xa, xb), x1: Math.max(xa, xb), y0: Math.min(ya, yb), y1: Math.max(ya, yb), couleur: style.trait, epaisseur: style.epaisseur });
       }
     }
     sousPaths = [];
@@ -340,9 +368,20 @@ function extraireTraces(opList, { vx0, vy0, vy1 }) {
         break;
       case OPS.save:
         ctmStack.push(ctm);
+        styleStack.push(style);
         break;
       case OPS.restore:
         if (ctmStack.length) ctm = ctmStack.pop();
+        if (styleStack.length) style = styleStack.pop();
+        break;
+      case OPS.setStrokeRGBColor:
+        style = { ...style, trait: couleurHex(a) };
+        break;
+      case OPS.setFillRGBColor:
+        style = { ...style, fond: couleurHex(a) };
+        break;
+      case OPS.setLineWidth:
+        style = { ...style, epaisseur: a[0] };
         break;
       default:
         break; // opérateurs de couleur, image, etc. : le path courant est conservé
@@ -357,6 +396,14 @@ function extraireTraces(opList, { vx0, vy0, vy1 }) {
     b.hauteur = b.bas - b.haut;
     b.xCentre = (b.x0 + b.x1) / 2;
   }
-  return { courbes, barres };
+  return { courbes, barres, traits };
+}
+
+// pdfjs 4 donne les couleurs RVB en [r, g, b] (0-255) ; d'autres versions
+// en chaîne « #rrggbb ». Toujours rendu en « #rrggbb » minuscule.
+function couleurHex(a) {
+  if (typeof a === 'string') return a.toLowerCase();
+  if (a && typeof a[0] === 'string') return a[0].toLowerCase();
+  return '#' + Array.from(a).slice(0, 3).map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
 }
 

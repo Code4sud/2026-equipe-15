@@ -5,6 +5,24 @@ import { normaliser } from '../text.js';
 // « 1ère ZONE DE MÉTIERS », « 2ème ZONE DE MÉTIERS »… (texte normalisé)
 const ZONE_RE = /(\d+)\s*[a-z]*\s*zone de m/;
 
+// Pages du champ des possibles, sans trou : de la première page qui ouvre
+// une zone jusqu'à la page qui précède l'avertissement. Une zone tient
+// souvent sur deux pages et la seconde n'a pas d'en-tête de zone : une
+// détection par mots-clés page à page la manquerait. Les pages 1 et 2
+// (couverture, sommaire) citent aussi les zones : elles sont écartées.
+export function pagesDuChamp(pages, sections) {
+  const ouvrantes = pages
+    .filter((p) => p.numero > 2 && p.lignes.some((l) => ZONE_RE.test(normaliser(l.texte))))
+    .map((p) => p.numero);
+  if (!ouvrantes.length) return sections.champ || [];
+  const debut = Math.min(...ouvrantes);
+  const apres = (sections.avertissement || []).filter((n) => n > debut);
+  const fin = apres.length ? Math.min(...apres) : pages.length + 1;
+  const numeros = [];
+  for (let n = debut; n < fin; n++) numeros.push(n);
+  return numeros;
+}
+
 // Dans le champ des possibles : une ligne « Nème ZONE DE MÉTIERS » ouvre
 // une zone (la ligne suivante donne son libellé « Métiers accessibles en
 // … »), une ligne en gras de taille titre (≥ 13 pt) est un nom de métier,
@@ -37,7 +55,15 @@ export function extraireMetiers(pages, numerosPages, notes) {
       }
       if (texteNorm.includes('champ des possibles')) continue;
       if (ligne.gras && zone !== null && ligne.taille >= 13 && ligne.texte.length <= 90) {
+        if (courant && !courant.description) {
+          // Intitulé long sur deux lignes en gras : c'est la suite du nom,
+          // pas un nouveau métier.
+          courant.nom = `${courant.nom} ${ligne.texte}`;
+          continue;
+        }
+        const rang = metiers.filter((m) => m.zone === zone).length + 1;
         courant = {
+          id: `z${zone}-m${rang}`,
           nom: ligne.texte,
           zone,
           zone_label: zoneLabel,

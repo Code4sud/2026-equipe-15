@@ -1,11 +1,20 @@
 // Lecture des scores sur les tracés vectoriels des graphiques du rapport :
-// - radar = anneaux concentriques + polygone de données excentré ;
-// - histogramme = barres sur une même ligne de base, la plus haute vaut le max.
+// - radar = anneaux gris concentriques + polygone de données au trait rose ;
+// - histogramme = barres mesurées avec les graduations écrites de l'axe.
 // Chaque score porte sa source (page, section, type de lecture).
 // Si un graphique est une image (pas de tracé), on ne devine rien :
 // value=null et source.type="absent".
 
 import { normaliser } from '../text.js';
+
+// Styles observés sur les vrais rapports (identiques sur tous ceux étudiés).
+const ROSE = '#e0349b'; // polygone des données, encadrés « point fort », barres
+const BLEU = '#5d62ea'; // encadrés des autres dimensions
+const GRIS_GRILLE = '#d8d8d8'; // anneaux des radars, lignes de l'histogramme
+
+// Pour comparer des libellés : sans accents, et lettres doublées écrasées
+// (l'extraction perd parfois un « l » sur deux).
+const comparable = (t) => normaliser(t).replace(/(.)\1+/g, '$1');
 
 export function lireScores(pages, numerosPages, cfg) {
   // Lit les scores sur la première page de la section qui contient un
@@ -32,70 +41,202 @@ export function lireScores(pages, numerosPages, cfg) {
 
 function lireRadar(page, cfg) {
   // Radar vectoriel : anneaux concentriques (ils partagent le centre du
-  // radar), polygone de données (excentré), étiquettes horizontales aux
-  // extrémités des axes.
+  // radar), polygone de données, étiquettes horizontales aux extrémités des
+  // axes. Le polygone de données est reconnu par son trait (rose, épais) :
+  // la reconnaissance par la forme échoue quand des valeurs valent 0 (sommets
+  // confondus au centre). Repli sur la forme si le style n'est pas trouvé.
   const candidats = page.courbes.filter((c) => c.points.length >= 5 && estPolygoneRadar(c, page));
-  if (candidats.length < 2) return { scores: [], note: null };
+  const anneauxGris = candidats.filter((c) => !c.remplie && c.couleurTrait === GRIS_GRILLE);
+  let centre;
+  let anneaux;
+  let donnees = null;
+  let parStyle = false;
 
-  // Le centre du radar = le centre partagé par le plus de polygones.
-  const centre = centreLePlusPartage(candidats);
-  const anneaux = candidats.filter((c) => distance(c.centre, centre) <= 5);
-  let excentres = candidats.filter((c) => distance(c.centre, centre) > 5);
-  if (!excentres.length) {
-    // polygone de données symétrique : repli sur le remplissage
-    excentres = candidats.filter((c) => c.remplie && !anneaux.includes(c));
+  if (anneauxGris.length >= 2) {
+    centre = centreLePlusPartage(anneauxGris);
+    anneaux = anneauxGris.filter((c) => distance(c.centre, centre) <= 5);
+    const rExt = Math.max(...anneaux.map((c) => distanceMoyenne(c, centre)));
+    const roses = page.courbes.filter(
+      (c) =>
+        !c.remplie &&
+        c.couleurTrait === ROSE &&
+        c.epaisseur >= 1.5 &&
+        c.points.every((p) => distance(p, centre) <= rExt * 1.05)
+    );
+    if (roses.length) {
+      donnees = roses.reduce((a, b) => (b.points.length > a.points.length ? b : a));
+      parStyle = true;
+    }
   }
-  if (!excentres.length) return { scores: [], note: null };
+  if (!donnees) {
+    if (candidats.length < 2) return { scores: [], note: null };
+    // Le centre du radar = le centre partagé par le plus de polygones.
+    centre = centreLePlusPartage(candidats);
+    anneaux = candidats.filter((c) => distance(c.centre, centre) <= 5);
+    let excentres = candidats.filter((c) => distance(c.centre, centre) > 5);
+    if (!excentres.length) {
+      // polygone de données symétrique : repli sur le remplissage
+      excentres = candidats.filter((c) => c.remplie && !anneaux.includes(c));
+    }
+    if (!excentres.length) return { scores: [], note: null };
+    donnees = excentres.reduce((a, b) => (b.plusLoinDuCentre > a.plusLoinDuCentre ? b : a));
+  }
 
-  const donnees = excentres.reduce((a, b) => (b.plusLoinDuCentre > a.plusLoinDuCentre ? b : a));
   const anneau = anneaux.reduce((a, b) => (b.plusLoinDuCentre > a.plusLoinDuCentre ? b : a));
   const rMax = distanceMoyenne(anneau, centre);
   if (rMax < 20) return { scores: [], note: null }; // anneau dégénéré, illisible
 
   const echelle = cfg.echelleMax;
-  const note = `lu sur le tracé vectoriel : distance au centre / rayon de l'anneau extérieur × ${echelle} (anneau = ${echelle})`;
+  const note =
+    `lu sur le tracé vectoriel : distance au centre / rayon de l'anneau extérieur × ${echelle} ` +
+    `(anneau extérieur = ${echelle}, ${anneaux.length} anneaux)` +
+    (parStyle ? '' : ' ; polygone des données reconnu par sa forme (trait rose non trouvé)');
   const axes = labelsDesAxes(anneau.points, page.lignes, centre, rMax);
 
-  const scores = axes.map(([angle, labelBrut], i) => {
+  const scores = axes.map(([angleAxe, labelBrut]) => {
     const label = labelCanonique(labelBrut, cfg.labels);
-    const point = pointLePlusProche(donnees.points, angle, centre);
-    const valeur = Math.round((distance(point, centre) / rMax) * echelle * 10) / 10;
+    // Sommet du polygone sur cet axe (par l'angle, pas par l'ordre des
+    // points) ; un axe sans sommet hors du centre vaut 0.
+    const surAxe = donnees.points.filter((p) => distance(p, centre) > 0.5 && ecartAngle(angle(p, centre), angleAxe) <= 0.05);
+    const d = surAxe.length ? Math.max(...surAxe.map((p) => distance(p, centre))) : 0;
+    const valeur = Math.round((d / rMax) * echelle * 10) / 10;
     return {
       label,
       value: valeur,
       echelle_max: echelle,
+      point_fort: null,
       source: { page: page.numero, section: cfg.titre, type: 'trace_vectoriel', detail: note },
     };
   });
-  return { scores: ordonnerScores(scores, cfg.labels), note };
+  const noteForts = marquerPointsForts(page, scores, cfg.labels);
+  return { scores: ordonnerScores(scores, cfg.labels), note: noteForts ? `${note} ; ${noteForts}` : note };
+}
+
+// Sous chaque radar, chaque dimension a un encadré de description : fond
+// rose pour celles que le rapport met en avant, bleu pour les autres. On lit
+// la couleur de l'encadré qui contient le libellé : rien n'est recalculé.
+function marquerPointsForts(page, scores, labelsConnus) {
+  const formes = [
+    ...page.courbes.filter((c) => c.remplie).map((c) => ({ couleur: c.couleurFond, ...boite(c.points) })),
+    ...page.barres.map((b) => ({ couleur: b.couleurFond, x0: b.x0, x1: b.x1, haut: b.haut, bas: b.bas })),
+  ].filter((f) => f.couleur === ROSE || f.couleur === BLEU);
+
+  const couleurParLabel = {};
+  for (const f of formes) {
+    for (const ligne of page.lignes) {
+      if (ligne.xCentre < f.x0 || ligne.xCentre > f.x1 || ligne.baseline < f.haut || ligne.haut > f.bas) continue;
+      const label = labelCanonique(ligne.texte, labelsConnus);
+      if (labelsConnus.includes(label)) couleurParLabel[label] = f.couleur;
+    }
+  }
+  if (!Object.keys(couleurParLabel).length) return 'encadrés de couleur non trouvés : point_fort non renseigné';
+  for (const s of scores) {
+    if (couleurParLabel[s.label]) s.point_fort = couleurParLabel[s.label] === ROSE;
+  }
+  return null;
 }
 
 function lireHistogramme(page, cfg) {
-  // Histogramme vectoriel : barres posées sur une même ligne de base. La
-  // barre la plus haute vaut l'échelle max. Les étiquettes sont pivotées
-  // (verticales) dans le PDF : on associe les libellés connus de gauche à
-  // droite.
-  let barres = page.barres.filter((b) => b.hauteur >= 5 && b.largeur <= 120 && b.bas < 0.9 * page.hauteur);
-  if (!barres.length) return { scores: [], note: null };
-  const basMax = Math.max(...barres.map((b) => b.bas));
-  barres = barres.filter((b) => basMax - b.bas <= 3); // même ligne de base
-  barres.sort((a, b) => a.xCentre - b.xCentre);
-  const hMax = Math.max(...barres.map((b) => b.hauteur));
+  // Histogramme vectoriel : barres posées sur la ligne « 0 ». La hauteur
+  // d'une barre est convertie en points avec les graduations écrites à
+  // gauche de l'axe (« 0 », « 1 »… ou « 0 », « 0.5 »… : le pas change d'un
+  // rapport à l'autre), recalées sur les lignes de la grille. Sans
+  // graduations lisibles, on ne devine pas : pas de valeur.
+  const grille = lignesDeGrille(page);
+  const graduations = lireGraduations(page, grille);
+  if (graduations.length < 2) return { scores: [], note: null };
 
-  const echelle = cfg.echelleMax;
+  // Droite y = y0 + k × valeur, par moindres carrés sur les graduations.
+  const n = graduations.length;
+  const mv = graduations.reduce((s, g) => s + g.valeur, 0) / n;
+  const my = graduations.reduce((s, g) => s + g.y, 0) / n;
+  const k =
+    graduations.reduce((s, g) => s + (g.valeur - mv) * (g.y - my), 0) /
+    graduations.reduce((s, g) => s + (g.valeur - mv) ** 2, 0);
+  const y0 = my - k * mv;
+  if (!(k < 0)) return { scores: [], note: null }; // axe incohérent (les valeurs montent vers le haut)
+  const parUnite = -k;
+  const axeMax = Math.max(...graduations.map((g) => g.valeur));
+  const xMin = grille.length ? Math.min(...grille.map((t) => t.x0)) - 2 : 0;
+  const xMax = grille.length ? Math.max(...grille.map((t) => t.x1)) + 2 : page.largeur;
+
+  const barres = page.barres
+    .filter((b) => b.couleurFond !== '#ffffff' && b.largeur <= 60 && Math.abs(b.bas - y0) <= 2 && b.x0 >= xMin && b.x1 <= xMax)
+    .sort((a, b) => a.xCentre - b.xCentre);
+  if (!barres.length) return { scores: [], note: null };
+
   const labels = cfg.labels;
-  const note = `lu sur le tracé vectoriel : hauteur de la barre / barre la plus haute × ${echelle} (la plus haute = ${echelle}) ; étiquettes pivotées dans le PDF, associées par position de gauche à droite`;
-  const scores = barres.map((barre, i) => {
-    const label = i < labels.length ? labels[i] : `aptitude ${i + 1}`;
-    const valeur = Math.round((barre.hauteur / hMax) * echelle * 10) / 10;
-    return {
-      label,
-      value: valeur,
-      echelle_max: echelle,
-      source: { page: page.numero, section: cfg.titre, type: 'trace_vectoriel', detail: note },
-    };
-  });
-  return { scores, note };
+  const detail =
+    `lu sur le tracé vectoriel : hauteur de la barre mesurée avec les graduations de l'axe (0 à ${axeMax}) ; ` +
+    `libellé imposé par le code, associé à la barre par le texte pivoté écrit dessous`;
+  const notes = [];
+  const pivotes = page.textesPivotes.slice().sort((a, b) => a.xFin - b.xFin);
+  const source = { page: page.numero, section: cfg.titre, type: 'trace_vectoriel', detail };
+  const valeurDe = (barre) => Math.round(((barre.bas - barre.haut) / parUnite) * 10) / 10;
+
+  let scores;
+  if (pivotes.length === labels.length) {
+    // Une étiquette pivotée par aptitude : chaque barre est rattachée à
+    // l'étiquette qui se termine sous elle. Pas de barre = valeur 0.
+    const lus = [];
+    scores = labels.map((label, i) => {
+      const etiquette = pivotes[i];
+      lus.push(etiquette.texte);
+      const barre = barres.find((b) => etiquette.xFin >= b.x0 - 8 && etiquette.xFin <= b.x1 + 8);
+      if (!barre) notes.push(`aucune barre au-dessus de « ${label} » : lue comme 0`);
+      return { label, value: barre ? valeurDe(barre) : 0, echelle_max: cfg.echelleMax, source };
+    });
+    const differents = labels.filter((l, i) => comparable(l) !== comparable(lus[i]));
+    if (differents.length) {
+      notes.push(
+        `les libellés écrits sous les barres ne sont pas ceux attendus (${lus.join(', ')}) : ` +
+          `libellés attendus conservés, à vérifier sur le PDF`
+      );
+    }
+  } else {
+    // Étiquettes non lues : association de gauche à droite.
+    notes.push(`${pivotes.length} libellés lus sous les barres au lieu de ${labels.length} : barres associées de gauche à droite`);
+    if (barres.length !== labels.length) notes.push(`${barres.length} barres trouvées au lieu de ${labels.length}`);
+    scores = barres.map((barre, i) => ({
+      label: i < labels.length ? labels[i] : `aptitude ${i + 1}`,
+      value: valeurDe(barre),
+      echelle_max: cfg.echelleMax,
+      source,
+    }));
+  }
+  const nonEntieres = scores.filter((s) => Math.abs(s.value - Math.round(s.value)) > 0.05).map((s) => s.label);
+  if (nonEntieres.length) notes.push(`valeurs non entières, lecture à vérifier : ${nonEntieres.join(', ')}`);
+  return { scores, note: [detail, ...notes].join(' ; ') };
+}
+
+// Lignes horizontales longues de la grille, une par ordonnée.
+function lignesDeGrille(page) {
+  const lignes = page.traits
+    .filter((t) => t.y1 - t.y0 < 0.5 && t.x1 - t.x0 >= 200 && t.couleur === GRIS_GRILLE)
+    .sort((a, b) => a.y0 - b.y0);
+  return lignes.filter((t, i) => i === 0 || t.y0 - lignes[i - 1].y0 > 0.5);
+}
+
+// Nombres écrits à gauche de la grille (« 0 », « 1 »… ou « 0.5 »…), avec
+// l'ordonnée de la ligne de grille la plus proche (plus précise que le texte).
+function lireGraduations(page, grille) {
+  const xGrille = grille.length ? Math.min(...grille.map((t) => t.x0)) : null;
+  const graduations = [];
+  for (const ligne of page.lignes) {
+    if (!/^\d+([.,]\d+)?$/.test(ligne.texte)) continue;
+    if (xGrille === null || ligne.x1 > xGrille + 5 || ligne.x1 < xGrille - 40) continue;
+    const yTexte = (ligne.haut + ligne.baseline) / 2;
+    const proche = grille.reduce((a, t) => (!a || Math.abs(t.y0 - yTexte) < Math.abs(a.y0 - yTexte) ? t : a), null);
+    if (!proche || Math.abs(proche.y0 - yTexte) > 3) continue;
+    graduations.push({ valeur: parseFloat(ligne.texte.replace(',', '.')), y: proche.y0 });
+  }
+  return graduations;
+}
+
+function boite(points) {
+  const xs = points.map((p) => p[0]);
+  const ys = points.map((p) => p[1]);
+  return { x0: Math.min(...xs), x1: Math.max(...xs), haut: Math.min(...ys), bas: Math.max(...ys) };
 }
 
 // ─── Géométrie des graphiques ─────────────────────────────────────────────────
@@ -194,10 +335,6 @@ function labelsDesAxes(points, lignes, centre, rMax) {
     }
     return [a, meilleure ? meilleure[1] : `axe ${i + 1}`];
   });
-}
-
-function pointLePlusProche(points, a, centre) {
-  return points.reduce((best, p) => (ecartAngle(angle(p, centre), a) < ecartAngle(angle(best, centre), a) ? p : best));
 }
 
 function labelCanonique(texteBrut, labels) {

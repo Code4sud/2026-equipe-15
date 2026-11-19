@@ -1,74 +1,64 @@
-// Routes /report : dépôt d'un Rapport des Possibles (PDF) et analyse. // JF
+// Routes /report : analyse d'un Rapport des Possibles déjà rangé dans notre
+// base (prive/), désigné par le jeton du lien reçu par mail. // JF
 //
-// POST /report/upload      : dépose un PDF (multipart), sauvegarde l'analyse
-//                            JSON dans `storage/outputs/` et la retourne
-// GET  /report             : liste les identifiants d'analyses générées
-// GET  /report/{id}        : relit une analyse complète
-// GET  /report/{id}/scores : uniquement les scores des graphiques, avec leurs
-//                            sources (page, section, type de lecture)
+// GET /report/{jeton}        : analyse complète (JSON avec sources)
+// GET /report/{jeton}/scores : uniquement les scores des graphiques, avec leurs
+//                              sources (page, section, type de lecture)
+//
+// Pas d'authentification : le jeton (aléatoire, 128 bits) est la seule clé.
+// Aucune route ne liste les jetons ni les rapports, et un jeton mal formé ou
+// inconnu reçoit la même réponse 404.
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { Router } from 'express';
-import multer from 'multer';
-import { ErreurUpload, MAX_UPLOAD_OCTETS, sauvegarderUpload } from '../upload.js';
 import { analyserRapport } from '../report/analyzer.js';
 import { dossiersStockage } from '../storage.js';
+import { rapportDuJeton } from '../liens.js';
 
 export const router = Router();
 
-// Identifiants d'analyse = 32 caractères hexadécimaux (uuid4 sans tirets),
-// pour éviter toute lecture de fichier hors de storage/outputs.
-const ID_VALIDE = /^[0-9a-f]{32}$/;
-
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_UPLOAD_OCTETS, files: 1 },
-});
-
-function cheminAnalyse(analysisId) {
-  if (!ID_VALIDE.test(analysisId)) return null;
-  const chemin = path.join(dossiersStockage().outputs, `${analysisId}.json`);
-  return fs.existsSync(chemin) ? chemin : null;
+// L'analyse est calculée à la première consultation, puis relue depuis
+// storage/outputs/{jeton}.json (jamais versionné), sauf si le PDF a changé.
+async function analyseDuJeton(jeton) {
+  const pdf = rapportDuJeton(jeton);
+  if (!pdf) return null;
+  const { outputs } = dossiersStockage();
+  const cache = path.join(outputs, `${jeton}.json`);
+  if (fs.existsSync(cache) && fs.statSync(cache).mtimeMs >= fs.statSync(pdf).mtimeMs) {
+    return JSON.parse(fs.readFileSync(cache, 'utf8'));
+  }
+  const analyse = await analyserRapport(pdf, path.basename(pdf), jeton);
+  fs.mkdirSync(outputs, { recursive: true });
+  fs.writeFileSync(cache, JSON.stringify(analyse, null, 2));
+  return analyse;
 }
 
-router.post('/upload', upload.single('fichier'), async (req, res) => {
+// Données personnelles : ni cache navigateur ou proxy, ni jeton transmis
+// dans l'en-tête Referer vers d'autres sites.
+router.use((_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  res.set('Referrer-Policy', 'no-referrer');
+  next();
+});
+
+async function repondre(req, res, extraire) {
   try {
-    if (!req.file) return res.status(400).json({ detail: 'Champ « fichier » (PDF) manquant' });
-    const cheminPdf = sauvegarderUpload(req.file.buffer, req.file.originalname);
-    const analyse = await analyserRapport(cheminPdf, req.file.originalname);
-    const { outputs } = dossiersStockage();
-    fs.mkdirSync(outputs, { recursive: true });
-    fs.writeFileSync(path.join(outputs, `${analyse.id}.json`), JSON.stringify(analyse, null, 2));
-    res.status(201).json(analyse);
+    const analyse = await analyseDuJeton(req.params.jeton);
+    if (!analyse) return res.status(404).json({ detail: 'Rapport introuvable' });
+    res.json(extraire(analyse));
   } catch (e) {
-    if (e instanceof ErreurUpload) return res.status(400).json({ detail: e.message });
     console.error(e);
-    res.status(500).json({ detail: "Erreur interne pendant l'analyse du PDF" });
+    res.status(500).json({ detail: "Erreur interne pendant l'analyse du rapport" });
   }
-});
+}
 
-router.get('', (req, res) => {
-  // Identifiants des analyses déjà générées (fichiers JSON de storage/outputs).
-  const { outputs } = dossiersStockage();
-  if (!fs.existsSync(outputs)) return res.json([]);
-  res.json(fs.readdirSync(outputs).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort());
-});
+router.get('/:jeton', (req, res) => repondre(req, res, (analyse) => analyse));
 
-router.get('/:analysisId', (req, res) => {
-  const chemin = cheminAnalyse(req.params.analysisId);
-  if (!chemin) return res.status(404).json({ detail: 'Analyse inconnue' });
-  res.json(JSON.parse(fs.readFileSync(chemin, 'utf8')));
-});
-
-router.get('/:analysisId/scores', (req, res) => {
-  // Les scores des trois graphiques du rapport, avec leurs sources.
-  const chemin = cheminAnalyse(req.params.analysisId);
-  if (!chemin) return res.status(404).json({ detail: 'Analyse inconnue' });
-  const analyse = JSON.parse(fs.readFileSync(chemin, 'utf8'));
-  res.json({
+router.get('/:jeton/scores', (req, res) =>
+  repondre(req, res, (analyse) => ({
     interets_riasec: analyse.interets_riasec,
     aptitudes: analyse.aptitudes,
     personnalite_hexaco: analyse.personnalite_hexaco,
-  });
-});
+  }))
+);

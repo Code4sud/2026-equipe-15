@@ -42,9 +42,9 @@ Le backend est en **Node.js + Express** (`backend/`), le frontend est servi sép
 
 ```bash
 cd backend && npm install        # installe les dépendances (Node ≥ 20)
-cp .env.example .env             # optionnel : API_TOKEN=… pour activer l'auth Bearer
-npm start                        # API sur http://localhost:8000 (POST /report/upload…)
-npm test                         # tests de bout en bout avec un PDF fictif « Rdv FICTIF »
+npm run lien -- rapport.pdf      # jeton du lien d'un rapport rangé dans prive/
+npm start                        # API sur http://localhost:8000 (GET /report/{jeton})
+npm test                         # tests sur les rapports de prive/ (sautés si prive/ est vide)
 ```
 
 ## Publier sur le site du hackathon

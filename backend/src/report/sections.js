@@ -93,7 +93,7 @@ export function pagesAvecTitreEnPremiereLigne(pages, cfg) {
   return resultat;
 }
 
-// Retourne la mention « Rdv … » du rapport (ex. « Rdv FICTIF » en test).
+// Retourne la mention « Rdv … » du rapport.
 export function extraireRdv(pages) {
   for (const page of pages) {
     const m = page.texte.match(/Rdv\s*n?°?\s*[A-Za-z0-9-]+/);
