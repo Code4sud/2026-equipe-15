@@ -8,6 +8,8 @@ import EnTete from '../components/EnTete.jsx'
 import { AssistantFlottant } from '../components/Assistant.jsx'
 import { metierParId, dureeDeZone } from '../lib/donnees.js'
 import { useOnboarding } from '../lib/stockage.js'
+import { candidats } from '../lib/onboarding.js'
+import { zones } from '../data/rapport.js'
 import { INFOS_METIERS, SOURCE_EXEMPLE } from '../data/infos-metiers.js'
 import Bientot from './Bientot.jsx'
 
@@ -85,8 +87,16 @@ export default function Metier() {
   const estFavori = rang !== -1
   const page = metier.source.page
 
-  const changerAvis = (valeur) =>
-    setOnboarding((o) => ({ ...o, interets_metiers: { ...(o?.interets_metiers ?? {}), [metier.id]: valeur } }))
+  // Même règle que l'onboarding : le préféré d'une zone doit rester un de ses candidats.
+  const changerAvis = (valeur) => {
+    const interets_metiers = { ...onboarding.interets_metiers, [metier.id]: valeur }
+    const favoris = { ...onboarding.favoris }
+    const zone = zones.find((z) => z.id === metier.zone)
+    if (favoris[metier.zone] && !candidats(zone, interets_metiers).some((m) => m.id === favoris[metier.zone])) {
+      favoris[metier.zone] = null
+    }
+    setOnboarding({ ...onboarding, interets_metiers, favoris })
+  }
 
   const formations = infos?.formations.filter((f) => !alternance || f.alternance) ?? []
 
