@@ -102,13 +102,21 @@ C'est la première restitution décidée le 19/11, et c'est là que le jury cher
 
 ### 5. La synthèse audio (deuxième restitution décidée)
 
-- [ ] À décider avec l'équipe :
-  - **côté front**, la synthèse vocale du navigateur (Web Speech API) lit `resume.texte`. Rien à faire côté
-    backend, mais la voix est celle du téléphone ;
-  - **côté backend**, un moteur local (par exemple Piper, voix françaises ouvertes) génère un fichier audio, servi
-    par `GET /report/{jeton}/audio`. C'est un binaire et un modèle de voix à installer : vérifier qu'ils tiennent sur
-    le portable de la démo, et qu'ils restent hors du dépôt (pas de fichier de plus de 50 Mo).
-- [ ] Dans les deux cas, le texte lu est exactement `resume.texte` : rien de plus n'est inventé à l'oral.
+- [x] **Décidé : moteur local côté backend (Piper).** Codé dans `src/audio/synthese.js` :
+  - `POST /report/{jeton}/resume` renvoie `audio_url` quand une voix est réglée (`PIPER_MODELE`), `null` sinon ;
+  - `GET` sur cette adresse lit `resume.texte` avec Piper. Le fichier est créé au premier appel, puis gardé en
+    cache. La lecture par morceaux est acceptée, comme pour le PDF ;
+  - 503 si aucune voix n'est réglée ou si Piper échoue : le front garde alors le texte seul.
+- [x] Le texte lu est `resume.texte`, à la ponctuation près (guillemets retirés, « / » lu « ou ») : rien n'est
+      ajouté à l'oral.
+- [x] Tests avec un faux Piper (`tests/outils/fauxPiper.js`) : création du fichier, cache, deux demandes simultanées,
+      panne, moteur absent, routes.
+- [ ] **Installer Piper et une voix française sur le PC de démo** (marche à suivre dans `Backend.txt`). Rien n'a encore
+      été lu par le vrai Piper : sur ce PC, aucun moteur n'est installé.
+  - Écouter le résultat sur un résumé, et vérifier la licence de la voix choisie.
+  - Mesurer le temps de la première synthèse, pour savoir si le front doit afficher « Ta synthèse arrive… ».
+- [ ] **À dire au front** : la carte « Écouter la synthèse » met `<adresse de l'API>` + `audio_url` dans une balise
+      `<audio>`. Si `audio_url` vaut `null`, ou si la lecture échoue (503), elle affiche le texte seul.
 
 ### 6. La liste des métiers de l'onboarding (écran 4)
 

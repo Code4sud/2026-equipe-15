@@ -7,7 +7,10 @@
 // GET  /report/{jeton}/pdf    : le PDF du rapport, pour la visionneuse du site
 //                               (PDF.js : lecture par morceaux acceptée)
 // POST /report/{jeton}/resume : résumé écrit (4 phrases avec leur page, et un
-//                               texte), corps facultatif { onboarding }
+//                               texte), corps facultatif { onboarding } ;
+//                               donne audio_url si la synthèse vocale est réglée
+// GET  /report/{jeton}/audio/{empreinte} : le texte du résumé lu à voix haute
+//                               (WAV, Piper), créé au premier appel
 //
 // Pas d'authentification : le jeton (aléatoire, 128 bits) est la seule clé.
 // Aucune route ne liste les jetons ni les rapports, et un jeton mal formé ou
@@ -23,6 +26,7 @@ import { rapportDuJeton } from '../liens.js';
 import { genererResume } from '../resume/generer.js';
 import { nettoyerOnboarding } from '../resume/faits.js';
 import { configOllama } from '../ai/ollama.js';
+import { audioDisponible, empreinteAudio, EMPREINTE_VALIDE, fichierAudio, ErreurAudio } from '../audio/synthese.js';
 
 export const router = Router();
 
@@ -111,14 +115,62 @@ router.post('/:jeton/resume', async (req, res) => {
       .slice(0, 16);
     const cache = path.join(dossiersStockage().outputs, `${req.params.jeton}-resume-${cle}.json`);
     const pdf = rapportDuJeton(req.params.jeton);
+    let resume;
     if (fs.existsSync(cache) && fs.statSync(cache).mtimeMs >= fs.statSync(pdf).mtimeMs) {
-      return res.json(JSON.parse(fs.readFileSync(cache, 'utf8')));
+      resume = JSON.parse(fs.readFileSync(cache, 'utf8'));
+    } else {
+      resume = await genererResume(analyse, onboarding);
+      if (resume.genere_par.mode !== 'repli') fs.writeFileSync(cache, JSON.stringify(resume, null, 2));
     }
-    const resume = await genererResume(analyse, onboarding);
-    if (resume.genere_par.mode !== 'repli') fs.writeFileSync(cache, JSON.stringify(resume, null, 2));
-    res.json(resume);
+    res.json({ ...resume, audio_url: preparerAudio(req.params.jeton, resume.texte) });
   } catch (e) {
     console.error(e);
     res.status(500).json({ detail: 'Erreur interne pendant la génération du résumé' });
+  }
+});
+
+// Audio du résumé. Le texte à lire est gardé à côté des analyses
+// ({jeton}-texte-{empreinte}.txt) quand le résumé est demandé ; l'audio est
+// créé au premier GET puis relu ({jeton}-audio-{empreinte}.wav). Sans voix
+// réglée (PIPER_MODELE), pas d'adresse audio : le front affiche le texte seul.
+function preparerAudio(jeton, texte) {
+  if (!audioDisponible() || !texte) return null;
+  const empreinte = empreinteAudio(texte);
+  const { outputs } = dossiersStockage();
+  const fichier = path.join(outputs, `${jeton}-texte-${empreinte}.txt`);
+  if (!fs.existsSync(fichier)) {
+    fs.mkdirSync(outputs, { recursive: true });
+    fs.writeFileSync(fichier, texte);
+  }
+  return `/report/${jeton}/audio/${empreinte}`;
+}
+
+router.get('/:jeton/audio/:empreinte', async (req, res) => {
+  const { jeton, empreinte } = req.params;
+  if (!rapportDuJeton(jeton) || !EMPREINTE_VALIDE.test(empreinte)) {
+    return res.status(404).json({ detail: 'Rapport introuvable' });
+  }
+  if (!audioDisponible()) return res.status(503).json({ detail: 'Synthèse vocale non configurée' });
+  const { outputs } = dossiersStockage();
+  const texte = path.join(outputs, `${jeton}-texte-${empreinte}.txt`);
+  if (!fs.existsSync(texte)) return res.status(404).json({ detail: 'Audio introuvable : redemande le résumé' });
+  try {
+    const wav = await fichierAudio(fs.readFileSync(texte, 'utf8'), outputs, `${jeton}-audio-${empreinte}`);
+    res.set({
+      'Content-Type': 'audio/wav',
+      'Content-Disposition': 'inline; filename="resume.wav"',
+      'X-Content-Type-Options': 'nosniff',
+      'Access-Control-Expose-Headers': 'Accept-Ranges, Content-Range, Content-Length',
+    });
+    res.sendFile(wav, { cacheControl: false }, (err) => {
+      if (err && err.code !== 'ECONNABORTED' && !res.headersSent) res.status(500).json({ detail: 'Erreur interne' });
+    });
+  } catch (e) {
+    if (e instanceof ErreurAudio) {
+      console.error(`Synthèse vocale : ${e.message}`);
+      return res.status(503).json({ detail: 'Synthèse vocale indisponible' });
+    }
+    console.error(e);
+    res.status(500).json({ detail: 'Erreur interne pendant la synthèse vocale' });
   }
 });

@@ -17,6 +17,17 @@ IA : Ollama en local. Le modèle se règle dans backend/.env (OLLAMA_MODEL,
 voir .env.example) ; sans modèle, le résumé est construit sans IA à partir
 des mêmes faits (repli). Les tests n'appellent jamais Ollama.
 
+Audio : Piper en local (PIPER_BIN, PIPER_MODELE dans backend/.env). Sans voix
+réglée, pas d'audio : le front affiche le texte seul. Les tests utilisent un
+faux Piper (tests/outils/fauxPiper.js). Installation sur le PC de démo, hors
+du dépôt :
+    - le binaire Piper (archive « piper_linux_x86_64 » des versions de
+      github.com/rhasspy/piper), décompressé par exemple dans ~/piper/ ;
+    - une voix française .onnx et son .onnx.json (dépôt « rhasspy/piper-voices »,
+      dossier fr/fr_FR), à côté ; vérifier la licence de la voix choisie ;
+    - essai : echo "Bonjour" | ~/piper/piper --model <voix>.onnx --output_file essai.wav
+    - puis PIPER_BIN=~/piper/piper et PIPER_MODELE=<chemin de la voix>.onnx.
+
 Accès : pas d'authentification. Le jeune ouvre sa page depuis un lien reçu
 par mail, qui porte un jeton aléatoire (32 caractères hexadécimaux). Pour
 l'instant, la « base » est le dossier prive/ (ignoré par git) : les PDF, et
@@ -40,6 +51,8 @@ backend/
 │   │                       #   tracés vectoriels (radars), rectangles pleins (histogrammes)
 │   ├── ai/
 │   │   └── ollama.js       # client Ollama (OLLAMA_URL, OLLAMA_MODEL, OLLAMA_THINK…), réponse en JSON
+│   ├── audio/
+│   │   └── synthese.js     # synthèse vocale du résumé avec Piper (WAV, cache, une synthèse à la fois par texte)
 │   ├── resume/
 │   │   ├── faits.js        # les faits du résumé, chacun avec sa page (seule matière donnée au modèle)
 │   │   ├── controle.js     # refus des phrases sans fait, avec un nombre inventé ou un mot interdit
@@ -59,6 +72,8 @@ backend/
 │
 ├── tests/
 │   ├── resume.test.js                     # faits, contrôle, résumé (modèle factice, analyse inventée)
+│   ├── audio.test.js                      # synthèse vocale et route audio (faux Piper)
+│   ├── outils/fauxPiper.js                # faux Piper : même interface, WAV de silence
 │   ├── report.test.js                     # routes /report et jetons, sur les PDF de prive/
 │   └── rapports-reels.test.js             # invariants sur les vrais PDF de prive/ (local seulement,
 │                                          #   sauté si prive/ est vide ; aucune valeur réelle écrite)
@@ -80,6 +95,11 @@ Routes actuelles :
                                   faits [{ id, page, texte }], genere_par { mode, modele, raison },
                                   controle { phrases_refusees, raisons }, choix_pris_en_compte.
                                   Mis en cache par jeton, choix et modèle (sauf en repli complet).
+                                  Plus audio_url (/report/{jeton}/audio/{empreinte}) si une voix
+                                  est réglée, sinon null.
+    GET  /report/{jeton}/audio/{empreinte} : le texte du résumé lu par Piper (audio/wav), créé au
+                                  premier appel puis gardé en cache ; 503 si pas de voix réglée
+                                  ou si Piper échoue (le front garde alors le texte seul).
     Jeton mal formé ou inconnu : 404 « Rapport introuvable », toujours la même réponse.
     Réponses en Cache-Control: no-store et Referrer-Policy: no-referrer (données personnelles).
 
