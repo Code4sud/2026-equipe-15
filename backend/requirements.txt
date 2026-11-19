@@ -3,6 +3,7 @@ fastapi>=0.115
 uvicorn[standard]>=0.30
 python-multipart>=0.0.9   # réception des PDF en multipart (upload)
 pydantic>=2.7
+python-dotenv>=1.0       # lit le .env (API_TOKEN, etc.)
 pdfplumber>=0.11          # lecture du PDF : texte, positions des mots, tracés vectoriels
 
 # Tests (backend/tests) : génèrent un rapport FICTIF et testent le pipeline de bout en bout
