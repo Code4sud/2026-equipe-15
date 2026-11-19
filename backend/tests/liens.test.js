@@ -73,7 +73,13 @@ test('lien : jeton aléatoire, stable pour un même rapport, valable 1 an', () =
   assert.notEqual(creerLien(fauxPdf(), T0).jeton, a.jeton);
   assert.throws(() => creerLien('absent.pdf', T0));
   assert.throws(() => creerLien('note.txt', T0));
-  assert.equal(adresseDuLien(a.jeton), `http://localhost:5173/#/?r=${a.jeton}`);
+  assert.equal(adresseDuLien(a.jeton), `http://localhost:5173/2026-equipe-15/#/?r=${a.jeton}`);
+  process.env.SITE_URL = 'https://exemple.invalid/site'; // réglable, barre finale ajoutée
+  try {
+    assert.equal(adresseDuLien(a.jeton), `https://exemple.invalid/site/#/?r=${a.jeton}`);
+  } finally {
+    delete process.env.SITE_URL;
+  }
 });
 
 test('expiration : le lien ne marche plus après 1 an, un nouveau lien est alors créé', () => {

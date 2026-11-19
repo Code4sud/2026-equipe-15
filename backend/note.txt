@@ -52,7 +52,7 @@ b) Les pages métier
 
 c) Le lien du mail
    Format : <SITE_URL>#/?r=<jeton>. Le site doit lire le jeton dans #/?r=.
-   Avec Vite en local, SITE_URL = http://localhost:5173/2026-equipe-15/
+   Avec Vite en local, c'est l'adresse par défaut : http://localhost:5173/2026-equipe-15/
 
 
 3. POUR LE BACKEND
@@ -70,7 +70,7 @@ Dans backend/.env :
     OLLAMA_MODEL=qwen3.6:35b      (nom exact affiché par « ollama list »)
     OLLAMA_THINK=false            (sinon Qwen « réfléchit » et c'est très lent)
     OLLAMA_URL=http://localhost:11434   (ou l'adresse du PC qui fait tourner Ollama)
-    SITE_URL=http://localhost:5173/2026-equipe-15/
+    SITE_URL=http://localhost:5173/2026-equipe-15/   (valeur par défaut, à changer si le site est ailleurs)
 À la racine, dans .env :
     VITE_API_URL=http://localhost:8000
 Si Ollama tourne sur un autre PC que l'API : lancer Ollama avec

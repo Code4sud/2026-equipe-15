@@ -33,9 +33,9 @@ export const config = {
     const n = Number(process.env.LIEN_DUREE_JOURS || 365);
     return Number.isFinite(n) && n > 0 ? n : 365;
   },
-  // Adresse du site, pour le lien du mail : <SITE_URL>#/?r=<jeton>.
+  // Adresse du site, pour le lien du mail : <SITE_URL>#/?r=<jeton> (défaut : le site Vite en local).
   get siteUrl() {
-    return (process.env.SITE_URL || 'http://localhost:5173/').replace(/\/*$/, '/');
+    return (process.env.SITE_URL || 'http://localhost:5173/2026-equipe-15/').replace(/\/*$/, '/');
   },
   // Mails préparés (.eml) : dossier et expéditeur.
   get mailsDir() {
