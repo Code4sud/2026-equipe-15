@@ -39,7 +39,9 @@ _Deux ou trois phrases : le problème, la solution, pour qui._
 ## Lancer le projet
 
 ```bash
-# Comment installer et démarrer, en 5 lignes maximum
+npm install        # une fois (Node 20 ou plus)
+npm run dev        # ouvre http://localhost:5173/2026-equipe-15/
+npm run build      # version publiée sur GitHub Pages (dist/)
 ```
 
 ## Publier sur le site du hackathon
