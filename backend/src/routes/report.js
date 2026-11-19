@@ -4,6 +4,8 @@
 // GET  /report/{jeton}        : analyse complète (JSON avec sources)
 // GET  /report/{jeton}/scores : uniquement les scores des graphiques, avec leurs
 //                               sources (page, section, type de lecture)
+// GET  /report/{jeton}/pdf    : le PDF du rapport, pour la visionneuse du site
+//                               (PDF.js : lecture par morceaux acceptée)
 // POST /report/{jeton}/resume : résumé écrit (4 phrases avec leur page, et un
 //                               texte), corps facultatif { onboarding }
 //
@@ -60,7 +62,30 @@ async function repondre(req, res, extraire) {
   }
 }
 
-router.get('/:jeton', (req, res) => repondre(req, res, (analyse) => analyse));
+// `rapport_pdf_url` (contrat) : adresse du PDF, relative à la racine de l'API.
+router.get('/:jeton', (req, res) =>
+  repondre(req, res, (analyse) => ({ ...analyse, rapport_pdf_url: `/report/${analyse.id}/pdf` }))
+);
+
+// Le PDF lui-même. Même contrôle du jeton et même 404 que les autres routes.
+// Nom de fichier neutre : le nom rangé dans prive/ (numéro du rapport) ne sort
+// pas. Les requêtes « Range » de PDF.js sont servies (206) ; leurs en-têtes
+// sont exposés au front, servi depuis une autre origine.
+router.get('/:jeton/pdf', (req, res) => {
+  const pdf = rapportDuJeton(req.params.jeton);
+  if (!pdf) return res.status(404).json({ detail: 'Rapport introuvable' });
+  res.set({
+    'Content-Type': 'application/pdf',
+    'Content-Disposition': 'inline; filename="rapport.pdf"',
+    'X-Content-Type-Options': 'nosniff',
+    'Access-Control-Expose-Headers': 'Accept-Ranges, Content-Range, Content-Length',
+  });
+  res.sendFile(pdf, { cacheControl: false }, (err) => {
+    if (!err) return;
+    if (!res.headersSent) return res.status(404).json({ detail: 'Rapport introuvable' });
+    if (err.code !== 'ECONNABORTED') console.error(err); // ECONNABORTED : PDF.js a annulé la lecture
+  });
+});
 
 router.get('/:jeton/scores', (req, res) =>
   repondre(req, res, (analyse) => ({
