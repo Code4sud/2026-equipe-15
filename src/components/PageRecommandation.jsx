@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { ArrowLeft, FileText } from 'lucide-react'
 import EnTete from './EnTete.jsx'
-import { rapport } from '../lib/donnees.js'
+import { rapport, source } from '../lib/donnees.js'
 
 const PAGES = [
   ['/synthese', 'Écouter'], ['/profil', 'Mon profil'],
@@ -21,7 +21,7 @@ export default function PageRecommandation({ titre, description, Icone, children
     <main className="mx-auto max-w-4xl px-4 pb-10 pt-4">
       <Link to="/" className="inline-flex min-h-11 items-center gap-2 font-semibold text-doux hover:text-texte"><ArrowLeft size={18} aria-hidden="true" />Retour à ma page</Link>
       <header className="mb-6 mt-5">
-        <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-ligne px-3 py-1 text-sm text-doux">{rapport.rdv} · données inventées</p>
+        <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-ligne px-3 py-1 text-sm text-doux">{source === 'api' ? rapport.rdv : `${rapport.rdv} · données inventées`}</p>
         <div className="flex items-start gap-3">
           <span className="mt-1 grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-violet/15 text-violet-clair"><Icone size={23} aria-hidden="true" /></span>
           <h1 ref={titreRef} tabIndex={-1} className="min-w-0 text-3xl font-bold tracking-tight outline-none sm:text-4xl">{titre}</h1>

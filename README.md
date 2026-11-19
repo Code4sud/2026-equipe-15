@@ -48,6 +48,9 @@ npm run lien -- rapport.pdf      # jeton du lien d'un rapport rangé dans prive/
 npm start                        # API sur http://localhost:8000 (GET /report/{jeton})
 ```
 
+Sans fichier `.env`, le site montre un exemple inventé. Pour lire un rapport de `prive/` : copiez `.env.example`
+en `.env` à la racine (adresse de l'API), puis ouvrez `http://localhost:5173/2026-equipe-15/#/?r=<jeton>`.
+
 ## Publier sur le site du hackathon
 
 1. Complétez `projet.json` (nom, pitch, description, écoles, technologies, liens).

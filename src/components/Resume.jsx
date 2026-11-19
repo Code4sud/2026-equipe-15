@@ -1,12 +1,18 @@
 import { Link } from 'react-router-dom'
 import { Check, FileText, ChevronRight, Pencil, Plus } from 'lucide-react'
-import { resume, metierParId, metiersDeZone } from '../lib/donnees.js'
+import { source, metierParId, metiersDeZone } from '../lib/donnees.js'
+import { useResume } from '../lib/resume.js'
 import { useOnboarding } from '../lib/stockage.js'
 import { ZONES } from '../config.js'
 
 export default function Resume() {
   const [onboarding] = useOnboarding()
+  const { statut, resume, reessayer } = useResume(onboarding)
   const nombrePreferes = Object.values(onboarding.favoris).filter(Boolean).length
+  const avecApi = source === 'api'
+  // Exemple inventé : son dernier point décrit des choix de démonstration, remplacés par ceux du jeune.
+  // Rapport lu par l'API : les 4 points sont écrits à partir du rapport et des choix, chacun avec sa page.
+  const points = resume ? (avecApi ? resume.points : resume.points.slice(0, 3)) : []
   return (
     <section aria-labelledby="titre-resume" className="carte apparait overflow-hidden p-5 sm:p-7">
       <div>
@@ -16,10 +22,15 @@ export default function Resume() {
         </h2>
 
         <ul className="mt-4 divide-y divide-ligne border-t border-ligne">
-          {/* Le dernier point de l'exemple décrit des choix de démonstration.
-              Les choix réels du jeune sont affichés juste après, sans source PDF. */}
-          {resume.points.slice(0, 3).map((point) => (
-            <li key={point.texte}>
+          {statut === 'chargement' && <Attente />}
+          {statut === 'erreur' && (
+            <li role="alert" className="flex min-h-11 flex-wrap items-center gap-3 py-3 text-doux">
+              Ton résumé n'est pas disponible pour l'instant.
+              <button type="button" onClick={reessayer} className="min-h-11 font-semibold text-violet-clair hover:underline">Réessayer</button>
+            </li>
+          )}
+          {points.map((point, i) => (
+            <li key={point.texte} className="apparait" style={{ animationDelay: `${i * 90}ms` }}>
               <Link
                 to={`/rapport/${point.page}`}
                 className="group flex min-h-11 items-start gap-3 py-3"
@@ -35,13 +46,26 @@ export default function Resume() {
               </Link>
             </li>
           ))}
-          <li className="flex min-h-11 items-start gap-3 py-3">
-            <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-coche-fond text-coche">
-              <Pencil size={14} aria-hidden="true" />
-            </span>
-            <span>Tu as retenu {nombrePreferes} métier{nombrePreferes > 1 ? 's' : ''} préféré{nombrePreferes > 1 ? 's' : ''}. Tu peux changer d'avis.</span>
-          </li>
+          {!avecApi && (
+            <li className="flex min-h-11 items-start gap-3 py-3">
+              <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-coche-fond text-coche">
+                <Pencil size={14} aria-hidden="true" />
+              </span>
+              <span>Tu as retenu {nombrePreferes} métier{nombrePreferes > 1 ? 's' : ''} préféré{nombrePreferes > 1 ? 's' : ''}. Tu peux changer d'avis.</span>
+            </li>
+          )}
         </ul>
+
+        {avecApi && statut === 'pret' && (
+          <p className="mt-3 text-sm text-doux">
+            {resume.genere_par?.mode === 'repli'
+              ? 'Phrases tirées de ton rapport.'
+              : resume.genere_par?.mode === 'mixte'
+                ? "Phrases écrites à partir de ton rapport, avec l'aide d'une IA, et vérifiées une par une."
+                : 'Phrases écrites par une IA à partir de ton rapport, et vérifiées une par une.'}{' '}
+            Touche une phrase pour voir la page d'où elle vient.
+          </p>
+        )}
 
         <Link
           to="/onboarding"
@@ -53,6 +77,31 @@ export default function Resume() {
 
       <ZonesPreferees />
     </section>
+  )
+}
+
+// Pendant que l'IA écrit : un message, puis quatre lignes fantômes à la place des quatre phrases,
+// pour que la page ne saute pas quand elles arrivent.
+const LARGEURS = [['88%', '52%'], ['94%', '40%'], ['80%', '58%'], ['90%', '34%']]
+
+function Attente() {
+  return (
+    <>
+      <li role="status" className="flex min-h-11 items-center gap-3 py-3 font-semibold text-violet-clair">
+        <span className="points-attente" aria-hidden="true"><span /><span /><span /></span>
+        L'IA écrit ton résumé à partir de ton rapport
+      </li>
+      {LARGEURS.map(([longue, courte], i) => (
+        <li key={i} aria-hidden="true" className="flex min-h-11 items-start gap-3 py-3">
+          <span className="fantome mt-0.5 h-6 w-6 shrink-0" style={{ animationDelay: `${i * 120}ms` }} />
+          <span className="flex flex-1 flex-col gap-2 pt-1">
+            <span className="fantome h-3.5" style={{ width: longue, animationDelay: `${i * 120}ms` }} />
+            <span className="fantome h-3.5" style={{ width: courte, animationDelay: `${i * 120}ms` }} />
+          </span>
+          <span className="fantome mt-1 h-3.5 w-12 shrink-0" style={{ animationDelay: `${i * 120}ms` }} />
+        </li>
+      ))}
+    </>
   )
 }
 

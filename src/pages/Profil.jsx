@@ -1,7 +1,9 @@
 import { useId } from 'react'
 import { Compass } from 'lucide-react'
 import PageRecommandation, { SourceRapport } from '../components/PageRecommandation.jsx'
-import { rapport, resume } from '../lib/donnees.js'
+import { rapport } from '../lib/donnees.js'
+import { useResume } from '../lib/resume.js'
+import { useOnboarding } from '../lib/stockage.js'
 
 function Radar({ dimensions, titre }) {
   const id = useId()
@@ -33,7 +35,9 @@ function Dimensions({ dimensions }) {
 export default function Profil() {
   const aptitudes = rapport.aptitudes
   const maximum = Math.max(...aptitudes.map((a) => a.value))
-  const explication = (page) => resume.points.find((p) => p.page === page)?.texte
+  const [onboarding] = useOnboarding()
+  const { resume } = useResume(onboarding)
+  const explication = (page) => resume?.points.find((p) => p.page === page)?.texte
   return <PageRecommandation titre="Explorer ton profil" description="Trois façons de mieux comprendre ton rapport. Ces graphiques comparent tes dimensions entre elles, jamais à celles des autres." Icone={Compass}>
     <aside className="carte p-5 text-base leading-relaxed text-doux">Ces résultats sont une image à un instant donné. La fatigue, le stress et la motivation peuvent jouer. Il n’y a pas de bon ou de mauvais profil.</aside>
     <section aria-labelledby="titre-interets" className="carte p-5 sm:p-6">

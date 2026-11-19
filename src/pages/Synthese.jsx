@@ -1,9 +1,71 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Headphones } from 'lucide-react'
 import PageRecommandation, { SourceRapport } from '../components/PageRecommandation.jsx'
 import synthese from '../data/synthese-fictive.json'
+import { source } from '../lib/donnees.js'
+import { useResume } from '../lib/resume.js'
+import { useOnboarding } from '../lib/stockage.js'
 
 export default function Synthese() {
+  return source === 'api' ? <SyntheseDuRapport /> : <SyntheseExemple />
+}
+
+// Rapport lu par l'API : le texte est celui du résumé, phrase par phrase, chacune avec sa page.
+// La voix est celle de l'appareil (synthèse vocale du navigateur) : elle lit exactement ce texte.
+function SyntheseDuRapport() {
+  const [onboarding] = useOnboarding()
+  const { statut, resume, reessayer } = useResume(onboarding)
+  const [vitesse, setVitesse] = useState('1')
+  const [lecture, setLecture] = useState(false)
+  const voixDisponible = typeof window !== 'undefined' && 'speechSynthesis' in window
+  const pageDuFait = (id) => resume?.faits?.find((f) => f.id === id)?.page
+  const phrases = (resume?.phrases ?? []).map((p) => ({ texte: p.texte, page: pageDuFait(p.faits?.[0]) }))
+
+  useEffect(() => () => { if (voixDisponible) window.speechSynthesis.cancel() }, [voixDisponible])
+
+  const ecouter = () => {
+    window.speechSynthesis.cancel()
+    const enonce = new SpeechSynthesisUtterance(resume.texte)
+    enonce.lang = 'fr-FR'
+    enonce.rate = Number(vitesse)
+    enonce.onend = () => setLecture(false)
+    enonce.onerror = () => setLecture(false)
+    setLecture(true)
+    window.speechSynthesis.speak(enonce)
+  }
+  const arreter = () => { window.speechSynthesis.cancel(); setLecture(false) }
+
+  return <PageRecommandation titre="Écouter la synthèse" description="Prends le temps d’écouter. Tu peux aussi lire exactement le même texte juste en dessous." Icone={Headphones}>
+    <section aria-labelledby="titre-lecture" className="carte p-5 sm:p-6">
+      <h2 id="titre-lecture" className="text-xl font-bold">Ton rapport, à écouter</h2>
+      {statut === 'chargement' && <p role="status" className="mt-2 text-base text-doux">Ton résumé s’écrit à partir de ton rapport. Quelques secondes…</p>}
+      {statut === 'erreur' && <p role="alert" className="mt-2 text-base text-doux">Ton résumé n’est pas disponible pour l’instant. <button type="button" onClick={reessayer} className="min-h-11 font-semibold text-violet-clair hover:underline">Réessayer</button></p>}
+      {statut === 'pret' && <>
+        <p className="mb-5 mt-2 text-base text-doux">La voix de ton appareil lit le résumé de ton rapport, mot pour mot.</p>
+        {voixDisponible ? <div className="flex flex-wrap items-center gap-3">
+          <button type="button" onClick={lecture ? arreter : ecouter} className="inline-flex min-h-12 items-center gap-2 rounded-full bg-violet px-6 font-semibold text-white">
+            <Headphones size={18} aria-hidden="true" />{lecture ? 'Arrêter' : 'Écouter'}
+          </button>
+          <label className="flex flex-wrap items-center gap-3 text-base">Vitesse de lecture
+            <select value={vitesse} onChange={(e) => setVitesse(e.target.value)} disabled={lecture} className="min-h-11 rounded-xl border border-ligne bg-carte-2 px-3 text-texte">
+              <option value="0.8">Plus lentement</option><option value="1">Vitesse habituelle</option><option value="1.2">Un peu plus vite</option>
+            </select>
+          </label>
+        </div> : <p className="text-base text-doux">Ton navigateur ne peut pas lire le texte à voix haute. Tu peux le lire ci-dessous.</p>}
+      </>}
+    </section>
+    {statut === 'pret' && <section aria-labelledby="titre-texte" className="carte p-5 sm:p-6">
+      <h2 id="titre-texte" className="text-xl font-bold">Le texte lu</h2>
+      <div className="mt-4 space-y-5">{phrases.map((phrase, index) => <div key={index}>
+        <p className="text-base leading-relaxed">{phrase.texte}</p>
+        {phrase.page && <SourceRapport page={phrase.page} />}
+      </div>)}</div>
+      <p className="mt-6 border-t border-ligne pt-4 text-sm text-doux">Chaque phrase renvoie à la page de ton rapport d’où elle vient.</p>
+    </section>}
+  </PageRecommandation>
+}
+
+function SyntheseExemple() {
   const lecteur = useRef(null)
   const [erreur, setErreur] = useState(false)
   const [vitesse, setVitesse] = useState('1')

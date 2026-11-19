@@ -2,14 +2,13 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { GraduationCap, MapPin, Clock } from 'lucide-react'
 import PageRecommandation from '../components/PageRecommandation.jsx'
-import { rapport } from '../lib/donnees.js'
-import { INFOS_METIERS } from '../data/infos-metiers.js'
+import { rapport, infosMetiers } from '../lib/donnees.js'
 import { listerFormations } from '../lib/recommandations.js'
 
 export default function Formations() {
   const [metierId, setMetierId] = useState('')
   const [alternance, setAlternance] = useState(false)
-  const formations = listerFormations(rapport.metiers, INFOS_METIERS, { metierId, alternance })
+  const formations = listerFormations(rapport.metiers, infosMetiers, { metierId, alternance })
   return <PageRecommandation titre="Voir les formations" description="Explore les exemples de parcours et prépare tes questions sur le lieu, le coût ou l’accès." Icone={GraduationCap}>
     <aside className="carte border-dashed p-5">
       <h2 className="text-lg font-bold">Des exemples inventés pour la démo</h2>

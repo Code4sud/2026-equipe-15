@@ -6,11 +6,11 @@ import {
 } from 'lucide-react'
 import EnTete from '../components/EnTete.jsx'
 import { AssistantFlottant } from '../components/Assistant.jsx'
-import { metierParId, dureeDeZone } from '../lib/donnees.js'
+import { metierParId, dureeDeZone, infosMetiers } from '../lib/donnees.js'
 import { useOnboarding } from '../lib/stockage.js'
 import { candidats } from '../lib/onboarding.js'
 import { zones } from '../data/rapport.js'
-import { INFOS_METIERS, SOURCE_EXEMPLE } from '../data/infos-metiers.js'
+import { SOURCE_EXEMPLE } from '../data/infos-metiers.js'
 import Bientot from './Bientot.jsx'
 
 const ICONES = { store: Store, wrench: Wrench, heart: HeartHandshake }
@@ -71,7 +71,7 @@ export default function Metier() {
 
   if (!metier) return <Bientot titre="Ce métier n'est pas dans ton rapport" />
 
-  const infos = INFOS_METIERS[metier.id]
+  const infos = infosMetiers[metier.id]
   const Icone = ICONES[infos?.icone] ?? Briefcase
   const avis = onboarding?.interets_metiers?.[metier.id]
   const favoris = listeFavoris(onboarding)
