@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+/* Thème sombre (par défaut) : les couleurs du site du Centre des Possibles, en aplats. */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-titre: "Outfit", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-fond: #12123a;
+  --color-entete: #12123a;
+  --color-carte: #1b1b52;
+  --color-carte-2: #24246a;
+  --color-ligne: #2f2f78;
+  --color-texte: #f3f3fc;
+  --color-doux: #bcbee0;
+  /* violet : fond des boutons (texte blanc dessus). violet-clair : texte et icônes d'accent. */
+  --color-violet: #5d62ea;
+  --color-violet-clair: #a3a6ff;
+  --color-violet-fonce: #4b50d6;
+  /* repere : la touche de couleur (surtitres, barre de progression). */
+  --color-repere: #ff8cc6;
+  --color-coche: #a3a6ff;
+  --color-coche-fond: #2b2b7a;
+}
+
+/* Thème clair : mêmes noms, autres valeurs. Activé par data-theme="clair" sur <html>. */
+:root[data-theme="clair"] {
+  --color-fond: #f4f4fa;
+  --color-entete: #ffffff;
+  --color-carte: #ffffff;
+  --color-carte-2: #efeff8;
+  --color-ligne: #dcddec;
+  --color-texte: #16163f;
+  --color-doux: #55597a;
+  --color-violet: #4b50d6;
+  --color-violet-clair: #4b50d6;
+  --color-violet-fonce: #3a3fb8;
+  --color-repere: #4b50d6;
+  --color-coche: #1f7a4d;
+  --color-coche-fond: #e7f4ec;
+  color-scheme: light;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--color-fond);
+  color: var(--color-texte);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+@layer base {
+  h1, h2, h3 { font-family: var(--font-titre); }
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-violet-clair);
+  outline-offset: 2px;
+  border-radius: 12px;
+}
+
+/* Un titre qui reçoit le focus par le code (changement de page) ne montre pas de cadre. */
+[tabindex="-1"]:focus-visible { outline: none; }
+
+.carte {
+  background: var(--color-carte);
+  border: 1px solid var(--color-ligne);
+  border-radius: 16px;
+}
+
+@keyframes apparait {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+.apparait { animation: apparait 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+
+/* Attente du résumé : des lignes fantômes parcourues par un reflet, et trois points qui montent tour à tour. */
+@keyframes reflet {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+.fantome {
+  display: block;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--color-carte-2) 25%, var(--color-ligne) 50%, var(--color-carte-2) 75%);
+  background-size: 200% 100%;
+  animation: reflet 1.6s linear infinite;
+}
+@keyframes point-attente {
+  0%, 70%, 100% { opacity: 0.35; transform: translateY(0); }
+  35% { opacity: 1; transform: translateY(-4px); }
+}
+.points-attente { display: inline-flex; width: 1.5rem; flex-shrink: 0; align-items: center; justify-content: center; gap: 3px; }
+.points-attente span {
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+  background: currentColor;
+  animation: point-attente 1.2s ease-in-out infinite;
+}
+.points-attente span:nth-child(2) { animation-delay: 0.15s; }
+.points-attente span:nth-child(3) { animation-delay: 0.3s; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+.pb-securite { padding-bottom: calc(6rem + env(safe-area-inset-bottom)); }
