@@ -1,0 +1,142 @@
+/* Styles de l'onboarding. Les couleurs viennent des variables de thème de index.css (sombre et clair) :
+   pas de couleur en dur ici, sauf le blanc posé sur un fond d'accent. */
+
+.onboarding { --teinte: color-mix(in oklab, var(--color-violet) 16%, transparent); font-synthesis: none; }
+.onboarding * { box-sizing: border-box; }
+.onboarding button, .onboarding input { font: inherit; }
+.onboarding button { cursor: pointer; transition: background .18s, border-color .18s; }
+.onboarding button:disabled { cursor: not-allowed; opacity: .45; }
+.onboarding button, .onboarding a, .onboarding input { -webkit-tap-highlight-color: transparent; }
+.onboarding h1:focus { outline: none; }
+.onboarding .icon { width: 22px; height: 22px; flex-shrink: 0; }
+.onboarding .skip-link { position: fixed; top: -100px; left: 16px; z-index: 40; padding: 12px; background: var(--color-violet); color: #fff; border-radius: 8px; }
+.onboarding .skip-link:focus { top: 10px; }
+.onboarding .demo-badge { width: fit-content; margin: 14px 0 0 auto; border: 1px solid var(--color-ligne); color: var(--color-doux); font-size: 12px; padding: 4px 10px; border-radius: 30px; white-space: nowrap; }
+
+/* Les étapes */
+.onboarding .steps { display: flex; margin: 12px auto 16px; justify-content: space-between; position: relative; max-width: 570px; }
+.onboarding .steps::before { content: ''; position: absolute; height: 1px; background: var(--color-ligne); top: 13px; left: 12.5%; right: 12.5%; }
+.onboarding .step { flex: 1; min-width: 0; text-align: center; z-index: 1; color: var(--color-doux); }
+.onboarding .step-dot { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--color-ligne); display: grid; place-items: center; background: var(--color-fond); margin: 0 auto 6px; }
+.onboarding .step-dot > span { width: 6px; height: 6px; background: var(--color-doux); border-radius: 100%; }
+.onboarding .step-label { display: block; font-size: 12px; line-height: 1.3; }
+.onboarding .step.current { color: var(--color-texte); font-weight: 600; }
+.onboarding .step.current .step-dot { border-color: var(--color-violet-clair); background: var(--color-carte-2); }
+.onboarding .step.current .step-dot > span { background: var(--color-violet-clair); width: 8px; height: 8px; }
+.onboarding .step.past .step-dot { background: var(--color-violet); border-color: var(--color-violet); }
+.onboarding .step.past .icon { width: 15px; color: #fff; }
+
+/* Le panneau et ses textes */
+.onboarding .panel { padding: 20px 22px 0; border: 1px solid var(--color-ligne); border-radius: 16px; background: var(--color-carte); }
+.onboarding .back-button { display: inline-flex; align-items: center; gap: 2px; color: var(--color-doux); min-height: 44px; padding-right: 14px; margin: -10px 0 8px -8px; }
+.onboarding .back-button:hover { color: var(--color-texte); }
+.onboarding .back-button .icon { width: 19px; }
+.onboarding .eyebrow { display: flex; align-items: center; gap: 8px; color: var(--color-repere); font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; margin-bottom: 8px; }
+.onboarding .eyebrow .icon { width: 16px; height: 16px; }
+.onboarding h1 { font-size: clamp(26px, 5vw, 36px); line-height: 1.2; letter-spacing: -.02em; font-weight: 700; margin: 0 0 12px; overflow-wrap: anywhere; }
+.onboarding .intro { font-size: 16px; line-height: 1.6; margin: 12px 0 20px; }
+.onboarding .muted { color: var(--color-doux); font-size: 16px; line-height: 1.6; }
+.onboarding .welcome { padding-top: 28px; text-align: center; }
+.onboarding .welcome .eyebrow { justify-content: center; margin-bottom: 12px; }
+.onboarding .welcome h1 { max-width: 480px; margin: 0 auto 16px; }
+.onboarding .welcome .intro { max-width: 470px; margin: 0 auto 12px; }
+.onboarding .welcome-note { max-width: 400px; margin: 0 auto 8px; }
+
+/* Les boutons d'action restent en bas de l'écran sur téléphone */
+.onboarding .actions { display: flex; flex-direction: column; gap: 10px; margin: 20px -6px 0; padding: 14px 6px max(18px, env(safe-area-inset-bottom)); background: var(--color-carte); border-top: 1px solid var(--color-ligne); position: sticky; bottom: 0; z-index: 5; border-radius: 0 0 15px 15px; }
+.onboarding .primary, .onboarding .secondary, .onboarding .quiet { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 50px; border: 1px solid transparent; border-radius: 12px; padding: 10px 16px; font-size: 16px; font-weight: 600; }
+.onboarding .primary { background: var(--color-violet); color: #fff; }
+.onboarding .primary:not(:disabled):hover { background: var(--color-violet-fonce); }
+.onboarding .secondary { background: var(--color-carte-2); border-color: var(--color-ligne); }
+.onboarding .secondary:not(:disabled):hover { border-color: var(--color-violet-clair); }
+.onboarding .quiet { color: var(--color-doux); border-color: var(--color-ligne); background: transparent; }
+.onboarding .quiet:hover { border-color: var(--color-violet-clair); color: var(--color-texte); }
+/* Trois réponses sur deux lignes : la barre reste basse et ne cache pas le nom du métier. */
+.onboarding .opinion-actions { display: grid; grid-template-columns: 1fr 1fr; }
+.onboarding .opinion-actions .primary { grid-column: 1 / -1; }
+.onboarding .opinion-actions .secondary, .onboarding .opinion-actions .quiet { gap: 6px; padding: 8px 10px; font-size: 15px; line-height: 1.2; }
+.onboarding .opinion-actions .secondary .icon, .onboarding .opinion-actions .quiet .icon { display: none; }
+.onboarding .action-note { display: flex; justify-content: center; align-items: center; gap: 7px; font-size: 12px; color: var(--color-doux); font-weight: 400; line-height: 1.5; padding-top: 4px; }
+.onboarding .action-note .icon { width: 14px; height: 14px; }
+.onboarding .page-footer { display: flex; justify-content: center; align-items: center; gap: 10px; text-align: center; color: var(--color-doux); font-size: 13px; line-height: 1.6; padding: 22px 0 30px; }
+.onboarding .page-footer .icon { width: 17px; height: 17px; color: var(--color-violet-clair); }
+
+/* Avis sur un métier */
+.onboarding .progress-caption { display: flex; justify-content: space-between; color: var(--color-doux); gap: 10px; font-size: 14px; margin: 0 0 10px; }
+.onboarding .progress-caption span:first-child { color: var(--color-texte); font-weight: 600; }
+.onboarding .job-progress { appearance: none; display: block; width: 100%; height: 6px; border: 0; border-radius: 6px; background: var(--color-ligne); color: var(--color-repere); overflow: hidden; }
+.onboarding .job-progress::-webkit-progress-bar { background: var(--color-ligne); }
+.onboarding .job-progress::-webkit-progress-value { background: var(--color-repere); border-radius: 6px; }
+.onboarding .job-progress::-moz-progress-bar { background: var(--color-repere); border-radius: 6px; }
+/* Le bandeau qui dit dans quelle zone on se trouve */
+.onboarding .zone-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0 0 14px; padding: 10px 14px; border-radius: 12px; background: var(--color-carte-2); }
+.onboarding .zone-number { font-family: var(--font-titre); font-size: 18px; font-weight: 700; color: var(--color-violet-clair); }
+.onboarding .job-eyebrow { margin-top: 16px; }
+.onboarding .duration { display: inline-flex; align-items: center; gap: 7px; color: var(--color-doux); font-size: 14px; line-height: 1.5; }
+.onboarding .duration .icon { width: 16px; height: 16px; }
+.onboarding .duration-badge { border: 1px solid var(--color-ligne); background: var(--color-carte-2); border-radius: 30px; padding: 5px 11px; margin-bottom: 8px; }
+.onboarding .description { line-height: 1.6; font-size: 16px; margin: 8px 0; }
+.onboarding .text-button { color: var(--color-violet-clair); min-height: 44px; text-decoration: underline; text-underline-offset: 4px; }
+.onboarding .previous-answer { color: var(--color-violet-clair); font-size: 14px; margin: 8px 0; }
+.onboarding .small-note { margin: 12px 0 4px; font-size: 14px; }
+
+/* Choix du préféré */
+.onboarding .favorites { display: flex; flex-direction: column; gap: 12px; margin: 20px 0; }
+.onboarding .favorite { display: flex; align-items: center; text-align: left; gap: 12px; padding: 16px 14px; border: 1px solid var(--color-ligne); border-radius: 12px; background: var(--color-carte-2); line-height: 1.5; }
+.onboarding .favorite > span:nth-child(2) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.onboarding .favorite > .icon { width: 20px; color: var(--color-doux); }
+.onboarding .favorite.selected { background: var(--teinte); border-color: var(--color-violet-clair); }
+.onboarding .favorite.selected > .icon { color: var(--color-repere); }
+.onboarding .choice-circle { width: 24px; height: 24px; flex-shrink: 0; border: 1px solid var(--color-doux); border-radius: 100%; display: grid; place-items: center; }
+.onboarding .selected .choice-circle { background: var(--color-violet); border-color: var(--color-violet); color: #fff; }
+.onboarding .choice-circle .icon { width: 16px; height: 16px; }
+
+/* Ajouts du psychologue */
+.onboarding .search-label { display: block; margin: 20px 0 8px; font-size: 14px; font-weight: 600; }
+.onboarding .search-field { display: flex; align-items: center; gap: 10px; border: 1px solid var(--color-ligne); background: var(--color-carte-2); border-radius: 12px; padding: 0 14px; }
+.onboarding .search-field .icon { color: var(--color-doux); width: 19px; }
+.onboarding .search-field input { background: transparent; border: 0; min-width: 0; width: 100%; min-height: 52px; font-size: 16px; color: var(--color-texte); }
+.onboarding .search-field input:focus { outline: none; }
+.onboarding .search-field input::placeholder { color: var(--color-doux); }
+.onboarding .search-field:focus-within { border-color: var(--color-violet-clair); outline: 3px solid var(--color-violet-clair); outline-offset: 2px; }
+.onboarding .search-help { font-size: 12px; margin: 8px 0 12px; }
+.onboarding .search-results { list-style: none; max-height: 240px; overflow-y: auto; border: 1px solid var(--color-ligne); border-radius: 12px; padding: 4px; margin: 0 0 14px; }
+.onboarding .search-results button { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; min-height: 48px; text-align: left; padding: 10px; border-radius: 8px; font-size: 16px; }
+.onboarding .search-results button:hover, .onboarding .search-results .chosen { background: var(--teinte); }
+.onboarding .search-results .icon { width: 18px; color: var(--color-violet-clair); }
+.onboarding .no-result { color: var(--color-doux); padding: 12px; line-height: 1.6; }
+.onboarding .add-button { min-height: 46px; }
+.onboarding .section-label { font-size: 14px; font-weight: 600; color: var(--color-doux); margin: 22px 0 10px; }
+.onboarding .added-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.onboarding .added-list li { display: flex; align-items: center; gap: 10px; justify-content: space-between; min-height: 48px; border-radius: 10px; padding: 5px 5px 5px 12px; background: var(--color-carte-2); line-height: 1.5; }
+.onboarding .added-list li > span { overflow-wrap: anywhere; }
+.onboarding .added-list li > .icon { width: 16px; color: var(--color-coche); }
+.onboarding .remove-button { display: grid; place-items: center; min-width: 44px; min-height: 44px; border-radius: 8px; color: var(--color-doux); }
+.onboarding .remove-button:hover { background: var(--teinte); color: var(--color-texte); }
+.onboarding .remove-button .icon { width: 18px; }
+
+/* Récapitulatif */
+.onboarding .interest-count { display: flex; align-items: center; gap: 12px; margin: 20px 0; padding: 14px 16px; border: 1px solid var(--color-ligne); background: var(--color-carte-2); border-radius: 12px; line-height: 1.5; }
+.onboarding .interest-count .icon { color: var(--color-repere); }
+.onboarding .summary-list { list-style: none; padding: 0; margin: 0; }
+.onboarding .summary-list li { display: flex; flex-direction: column; gap: 4px; padding: 12px 0; border-bottom: 1px solid var(--color-ligne); }
+.onboarding .summary-list strong { font-size: 16px; font-weight: 600; line-height: 1.5; }
+.onboarding .storage-warning { background: var(--color-carte-2); border: 1px solid var(--color-repere); padding: 14px; border-radius: 12px; margin: 0 0 16px; line-height: 1.6; }
+
+@media (min-width: 640px) {
+.onboarding .demo-badge { font-size: 13px; }
+.onboarding .steps { margin-top: 20px; margin-bottom: 28px; }
+.onboarding .step-label { font-size: 14px; }
+.onboarding .step-dot { margin-bottom: 10px; }
+.onboarding .panel { padding: 32px 44px 0; }
+.onboarding .welcome { padding-top: 44px; }
+.onboarding .actions { position: static; margin-top: 28px; border-top: 0; padding-bottom: 30px; }
+.onboarding .welcome .actions { max-width: 390px; margin-inline: auto; }
+.onboarding .opinion-actions { gap: 12px; }
+.onboarding .opinion-actions .secondary, .onboarding .opinion-actions .quiet { gap: 10px; padding: 10px 16px; font-size: 16px; }
+.onboarding .opinion-actions .secondary .icon, .onboarding .opinion-actions .quiet .icon { display: block; }
+.onboarding .summary-list li { flex-direction: row; align-items: center; gap: 24px; }
+.onboarding .summary-list .duration { width: 145px; flex-shrink: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+.onboarding *, .onboarding *::before, .onboarding *::after { transition: none !important; scroll-behavior: auto !important; } }

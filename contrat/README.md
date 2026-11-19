@@ -7,11 +7,26 @@ sans backend. Tout y est inventé (« Rdv FICTIF »).
 
 | Bloc | Qui l'écrit | Contenu |
 | --- | --- | --- |
-| `rapport` | Le backend, à partir du PDF | La forme exacte de `ReportAnalysis` dans `backend/models/schemas.py` |
+| `rapport` | Le backend, à partir du PDF | Ce que renvoie `GET /report/{jeton}` |
 | `resume` | Le backend, avec le modèle | 4 phrases, chacune avec la page du rapport d'où elle vient, et un texte court |
 | `onboarding` | Le jeune, depuis le frontend | Son avis sur chaque métier, son préféré par zone, les métiers ajoutés avec le psychologue |
-| `todo` | Le backend, à partir de `onboarding` | Les premiers pas proposés, cochables |
-| `rapport_pdf_url` | Le backend | L'adresse du PDF, affiché par la visionneuse du site (« Ton rapport complet » et les phrases du résumé) |
+| `todo` | Le site, à partir de `onboarding` | Les premiers pas proposés, cochables |
+| `rapport_pdf_url` | Le backend | L'adresse du PDF, affiché par la visionneuse du site. Avec l'API : un chemin relatif à l'API, `/report/{jeton}/pdf` |
+
+## Le lien du jeune et les appels du site
+
+Le jeune ouvre `…/#/?r=<jeton>`. Le jeton (32 caractères) est créé côté backend par `npm run lien -- <fichier.pdf>`.
+L'adresse de l'API se lit dans `VITE_API_URL` (fichier `.env` à la racine, voir `.env.example`). Sans cette
+variable ou sans jeton, le site montre `rapport-fictif.json`. Avec un jeton inconnu ou une API arrêtée, il le dit :
+il ne montre pas l'exemple à la place du rapport. `…/#/?r=exemple` revient à l'exemple.
+
+| Appel | Réponse |
+| --- | --- |
+| `GET {API}/report/{jeton}` | Le bloc `rapport` |
+| `POST {API}/report/{jeton}/resume`, corps `{ "onboarding": … }` | Le bloc `resume`, plus `phrases`, `faits`, `genere_par` et `controle` |
+| `GET {API}/report/{jeton}/pdf` | Le PDF, pour la visionneuse |
+
+L'onboarding reste dans le navigateur du jeune, et les premiers pas (`todo`) sont calculés par le site.
 
 ## Deux ajouts demandés au schéma du backend
 

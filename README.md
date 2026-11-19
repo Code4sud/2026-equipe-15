@@ -38,14 +38,18 @@ _Deux ou trois phrases : le problème, la solution, pour qui._
 
 ## Lancer le projet
 
-Le backend est en **Node.js + Express** (`backend/`), le frontend est servi séparément.
+Le site (Vite, React) est à la racine, l'API (Node.js + Express) dans `backend/`.
 
 ```bash
-cd backend && npm install        # installe les dépendances (Node ≥ 20)
+npm ci && npm run dev            # site : http://localhost:5173/2026-equipe-15/ (Node 22.16 ou plus)
+# dans un second terminal, pour l'API :
+cd backend && npm ci             # dépendances de l'API
 npm run lien -- rapport.pdf      # jeton du lien d'un rapport rangé dans prive/
 npm start                        # API sur http://localhost:8000 (GET /report/{jeton})
-npm test                         # tests sur les rapports de prive/ (sautés si prive/ est vide)
 ```
+
+Sans fichier `.env`, le site montre un exemple inventé. Pour lire un rapport de `prive/` : copiez `.env.example`
+en `.env` à la racine (adresse de l'API), puis ouvrez `http://localhost:5173/2026-equipe-15/#/?r=<jeton>`.
 
 ## Publier sur le site du hackathon
 
