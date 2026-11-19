@@ -120,15 +120,29 @@ C'est la première restitution décidée le 19/11, et c'est là que le jury cher
 
 ### 6. La liste des métiers de l'onboarding (écran 4)
 
-- [ ] `GET /metiers?q=<texte>` : les intitulés qui commencent par ce texte, dès la deuxième lettre.
-- [ ] Source : la colonne `job_fr` de la table O\*NET. Cette table reste dans `prive/`, car le droit de la publier
-      n'est pas confirmé : la servir en local pour la démo, ne rien en copier dans le dépôt.
+- [x] `GET /report/{jeton}/metiers?q=<texte>` : d'abord les intitulés qui commencent par le texte, puis ceux dont un
+      mot commence par le texte, dès la deuxième lettre (10 par défaut, 20 au plus). Chaque résultat donne `nom`,
+      `code` O\*NET, et `dans_rapport` : l'id du métier s'il est déjà dans le rapport.
+  - La recherche passe par le jeton : la table reste dans `prive/` (droit de publication non confirmé), et elle ne
+    doit pas pouvoir être parcourue par n'importe qui.
+  - Lecture du `.xlsx` sans dépendance (`src/onet/xlsx.js`). La colonne « Zone réelle » (notes internes) n'est
+    jamais lue.
+- [ ] **À dire au front** :
+  - l'écran 4 appelle cette route au lieu de sa liste inventée ;
+  - un résultat avec `dans_rapport` est déjà dans le rapport : le front peut le signaler plutôt que de l'ajouter
+    une seconde fois ;
+  - `ajouts_psy` peut garder le `code` O\*NET en plus du `nom`.
 
 ### 7. Le contrôle des métiers contre O\*NET
 
-- [ ] Vérifier que chaque `nom` de métier extrait se retrouve dans `job_fr`, sur un texte normalisé (sans accents,
-      lettres doublées écrasées). En faire un test sur `prive/`, sauté si la table est absente.
-- [ ] Si un intitulé ne se retrouve pas : ajouter une note d'extraction, ne pas corriger le nom.
+- [x] Chaque métier de `GET /report/{jeton}` reçoit `onet` (code O\*NET et intitulé anglais), comparé sur un texte
+      normalisé (sans accents ni ponctuation, lettres doublées écrasées). Le nom n'est jamais corrigé.
+  - Un intitulé présent plusieurs fois dans la table (3 cas) donne tous ses codes, sans en choisir un.
+  - Un métier introuvable ajoute une note d'extraction.
+  - Bilan dans `controle_onet`.
+- [x] Vérifié sur les 18 rapports : les 379 métiers se retrouvent tous dans la table. C'est aussi un test sur
+      `prive/`, sauté si la table est absente.
+- [ ] Le code O\*NET ouvre la voie au lien vers ROME ou l'ONISEP (priorité 3, pages métier).
 
 ### 8. L'assistant (`/chat`) — Julien, d'après `Backend.txt`
 

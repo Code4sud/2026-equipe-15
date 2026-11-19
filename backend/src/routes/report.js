@@ -11,6 +11,8 @@
 //                               donne audio_url si la synthèse vocale est réglée
 // GET  /report/{jeton}/audio/{empreinte} : le texte du résumé lu à voix haute
 //                               (WAV, Piper), créé au premier appel
+// GET  /report/{jeton}/metiers?q=… : recherche de métiers dans la table O*NET,
+//                               pour l'onboarding (métiers vus avec le psychologue)
 //
 // Pas d'authentification : le jeton (aléatoire, 128 bits) est la seule clé.
 // Aucune route ne liste les jetons ni les rapports, et un jeton mal formé ou
@@ -27,6 +29,18 @@ import { genererResume } from '../resume/generer.js';
 import { nettoyerOnboarding } from '../resume/faits.js';
 import { configOllama } from '../ai/ollama.js';
 import { audioDisponible, empreinteAudio, EMPREINTE_VALIDE, fichierAudio, ErreurAudio } from '../audio/synthese.js';
+import { tableOnet, controlerMetiers, chercherMetiers, cleIntitule } from '../onet/table.js';
+
+// Table O*NET, ou null si elle est absente ou illisible (l'analyse reste
+// servie sans le contrôle).
+function tableOuNull() {
+  try {
+    return tableOnet();
+  } catch (e) {
+    console.error(`Table O*NET illisible : ${e.message}`);
+    return null;
+  }
+}
 
 export const router = Router();
 
@@ -67,9 +81,45 @@ async function repondre(req, res, extraire) {
 }
 
 // `rapport_pdf_url` (contrat) : adresse du PDF, relative à la racine de l'API.
+// Chaque métier est contrôlé contre la table O*NET (`onet` sur le métier,
+// bilan dans `controle_onet`) ; un métier introuvable ajoute une note.
 router.get('/:jeton', (req, res) =>
-  repondre(req, res, (analyse) => ({ ...analyse, rapport_pdf_url: `/report/${analyse.id}/pdf` }))
+  repondre(req, res, (analyse) => {
+    const { metiers, controle } = controlerMetiers(analyse.metiers, tableOuNull());
+    const notes = controle.introuvables.map((nom) => `Champ des possibles — métier introuvable dans la table O*NET : « ${nom} »`);
+    return {
+      ...analyse,
+      metiers,
+      notes: [...analyse.notes, ...notes],
+      controle_onet: controle,
+      rapport_pdf_url: `/report/${analyse.id}/pdf`,
+    };
+  })
 );
+
+// Recherche pour l'écran « Le psychologue t'a parlé d'autres métiers ? ».
+// Derrière le jeton : la table appartient au Centre, elle ne doit pas pouvoir
+// être parcourue par n'importe qui. Renvoie l'intitulé, le code O*NET, et l'id
+// du métier s'il est déjà dans le rapport.
+router.get('/:jeton/metiers', async (req, res) => {
+  try {
+    const analyse = await analyseDuJeton(req.params.jeton);
+    if (!analyse) return res.status(404).json({ detail: 'Rapport introuvable' });
+    const table = tableOuNull();
+    if (!table) return res.status(503).json({ detail: 'Table des métiers absente' });
+    const limite = Math.min(Math.max(parseInt(req.query.limite, 10) || 10, 1), 20);
+    const idDansRapport = new Map(analyse.metiers.map((m) => [cleIntitule(m.nom), m.id]));
+    const resultats = chercherMetiers(table, String(req.query.q ?? ''), limite).map((m) => ({
+      nom: m.job_fr,
+      code: m.code,
+      dans_rapport: idDansRapport.get(m.cle) ?? null,
+    }));
+    res.json({ resultats });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ detail: 'Erreur interne pendant la recherche de métiers' });
+  }
+});
 
 // Le PDF lui-même. Même contrôle du jeton et même 404 que les autres routes.
 // Nom de fichier neutre : le nom rangé dans prive/ (numéro du rapport) ne sort

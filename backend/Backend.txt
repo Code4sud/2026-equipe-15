@@ -51,6 +51,9 @@ backend/
 │   │                       #   tracés vectoriels (radars), rectangles pleins (histogrammes)
 │   ├── ai/
 │   │   └── ollama.js       # client Ollama (OLLAMA_URL, OLLAMA_MODEL, OLLAMA_THINK…), réponse en JSON
+│   ├── onet/
+│   │   ├── xlsx.js         # lecture minimale d'un .xlsx (ZIP + XML), sans dépendance
+│   │   └── table.js        # table O*NET de prive/ : contrôle des métiers, recherche (jamais « Zone réelle »)
 │   ├── audio/
 │   │   └── synthese.js     # synthèse vocale du résumé avec Piper (WAV, cache, une synthèse à la fois par texte)
 │   ├── resume/
@@ -73,6 +76,7 @@ backend/
 ├── tests/
 │   ├── resume.test.js                     # faits, contrôle, résumé (modèle factice, analyse inventée)
 │   ├── audio.test.js                      # synthèse vocale et route audio (faux Piper)
+│   ├── onet.test.js                       # lecture .xlsx, contrôle, recherche (classeur inventé)
 │   ├── outils/fauxPiper.js                # faux Piper : même interface, WAV de silence
 │   ├── report.test.js                     # routes /report et jetons, sur les PDF de prive/
 │   └── rapports-reels.test.js             # invariants sur les vrais PDF de prive/ (local seulement,
@@ -86,6 +90,13 @@ Routes actuelles :
     GET  /report/{jeton}        : analyse complète (JSON avec sources), calculée à la
                                   première consultation puis relue depuis storage/outputs/
                                   Contient rapport_pdf_url = /report/{jeton}/pdf (relative à l'API).
+                                  Chaque métier a « onet » ({ code, job_en }, { code: null, codes }
+                                  si l'intitulé est ambigu, null s'il est introuvable) ; bilan dans
+                                  controle_onet { table, retrouves, introuvables }.
+    GET  /report/{jeton}/metiers?q=…&limite=… : métiers de la table O*NET dont l'intitulé (ou un
+                                  mot) commence par q, 2 lettres au moins, 10 par défaut, 20 au plus.
+                                  [{ nom, code, dans_rapport (id du métier dans le rapport ou null) }].
+                                  503 si la table est absente.
     GET  /report/{jeton}/scores : les 3 graphiques (RIASEC, aptitudes, HEXACO) avec leurs sources
     GET  /report/{jeton}/pdf    : le PDF, pour la visionneuse (PDF.js / react-pdf). Nom neutre
                                   « rapport.pdf », lecture par morceaux (Range, 206) et en-têtes

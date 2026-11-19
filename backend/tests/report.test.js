@@ -155,6 +155,64 @@ test('POST /report/{jeton}/resume : 4 phrases avec leur page, repli sans Ollama'
   });
 });
 
+const TABLE_ONET = path.join(PRIVE, 'table-metiers-onet-fr-jobzones.xlsx');
+const sansTable = sansPdf || (fs.existsSync(TABLE_ONET) ? false : 'table O*NET absente de prive/');
+
+test('GET /report/{jeton} : métiers contrôlés contre la table O*NET', { skip: sansTable }, async () => {
+  const { jeton } = creerLien(pdfs[0]);
+  await avecServeur(async (base) => {
+    const analyse = await (await fetch(`${base}/report/${jeton}`)).json();
+    assert.equal(analyse.controle_onet.table, true);
+    assert.equal(analyse.controle_onet.retrouves, analyse.metiers.length);
+    assert.deepEqual(analyse.controle_onet.introuvables, []);
+    for (const m of analyse.metiers) assert.ok(m.onet && (m.onet.code || m.onet.codes), m.id);
+
+    // Table absente : l'analyse reste servie, sans contrôle
+    process.env.ONET_FICHIER = path.join(TMP, 'absente.xlsx');
+    try {
+      const sans = await (await fetch(`${base}/report/${jeton}`)).json();
+      assert.deepEqual(sans.controle_onet, { table: false, retrouves: 0, introuvables: [] });
+      assert.equal(sans.metiers.length, analyse.metiers.length);
+    } finally {
+      delete process.env.ONET_FICHIER;
+    }
+  });
+});
+
+test('GET /report/{jeton}/metiers : recherche dans la table, derrière le jeton', { skip: sansTable }, async () => {
+  const { jeton } = creerLien(pdfs[0]);
+  await avecServeur(async (base) => {
+    const chercher = async (q, extra = '') => {
+      const r = await fetch(`${base}/report/${jeton}/metiers?q=${encodeURIComponent(q)}${extra}`);
+      assert.equal(r.status, 200);
+      return (await r.json()).resultats;
+    };
+    // Chaque métier du rapport, cherché par son intitulé : il est proposé,
+    // avec son id dans le rapport.
+    const analyse = await (await fetch(`${base}/report/${jeton}`)).json();
+    for (const metier of analyse.metiers) {
+      const resultats = await chercher(metier.nom, '&limite=20');
+      assert.ok(resultats.length > 0 && resultats.length <= 20);
+      for (const r of resultats) assert.deepEqual(Object.keys(r), ['nom', 'code', 'dans_rapport']);
+      assert.ok(resultats.some((r) => r.dans_rapport === metier.id), `${metier.id} : non proposé par la recherche`);
+    }
+
+    assert.deepEqual(await chercher('a'), []); // rien avant 2 lettres
+    assert.ok((await chercher('an', '&limite=500')).length <= 20); // limite plafonnée
+    assert.ok((await chercher('an')).length <= 10); // 10 par défaut
+
+    assert.equal((await fetch(`${base}/report/${'a'.repeat(32)}/metiers?q=an`)).status, 404);
+    process.env.ONET_FICHIER = path.join(TMP, 'absente.xlsx');
+    try {
+      const r = await fetch(`${base}/report/${jeton}/metiers?q=an`);
+      assert.equal(r.status, 503);
+      assert.deepEqual(await r.json(), { detail: 'Table des métiers absente' });
+    } finally {
+      delete process.env.ONET_FICHIER;
+    }
+  });
+});
+
 test('jeton inconnu, mal formé ou pointant hors de prive/ -> même 404', async () => {
   // Une entrée piégée dans la table : un chemin au lieu d'un nom de fichier
   const piege = 'b'.repeat(32);

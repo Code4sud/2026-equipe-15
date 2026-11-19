@@ -17,6 +17,10 @@ import { analyserRapport } from '../src/report/analyzer.js';
 import { SECTIONS } from '../src/report/sections.js';
 import { construireFaits } from '../src/resume/faits.js';
 import { raisonDeRefus } from '../src/resume/controle.js';
+import { tableOnet, controlerMetiers } from '../src/onet/table.js';
+
+// Table O*NET de prive/ (null si absente : le contrôle des métiers est alors sauté).
+const TABLE = tableOnet();
 
 const PRIVE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'prive');
 const pdfs = fs.existsSync(PRIVE) ? fs.readdirSync(PRIVE).filter((f) => f.toLowerCase().endsWith('.pdf')).sort() : [];
@@ -93,6 +97,17 @@ for (const fichier of pdfs) {
       assert.ok(m.source.page >= 1, `${m.id} : source`);
     }
     assert.equal(new Set(a.metiers.map((m) => m.id)).size, a.metiers.length, 'identifiants de métiers en double');
+
+    // Chaque métier du rapport se retrouve dans la table O*NET par son
+    // intitulé (sur un texte normalisé), avec un code O*NET valide.
+    if (TABLE) {
+      const { metiers, controle } = controlerMetiers(a.metiers, TABLE);
+      assert.equal(controle.introuvables.length, 0, `${controle.introuvables.length} métier(s) introuvable(s) dans la table O*NET`);
+      for (const m of metiers) {
+        const codes = m.onet.code ? [m.onet.code] : m.onet.codes;
+        assert.ok(codes.every((c) => /^\d{2}-\d{4}\.\d{2}$/.test(c)), `${m.id} : code O*NET`);
+      }
+    }
 
     // Aucune note d'extraction signalant une lecture douteuse.
     const douteuses = a.notes.filter((n) =>

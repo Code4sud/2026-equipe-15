@@ -24,4 +24,8 @@ export const config = {
   get liensFichier() {
     return process.env.LIENS_FICHIER || path.join(this.rapportsDir, 'liens.json');
   },
+  // Table des métiers O*NET en français (tableur du Centre, dans prive/).
+  get onetFichier() {
+    return process.env.ONET_FICHIER || path.join(this.rapportsDir, 'table-metiers-onet-fr-jobzones.xlsx');
+  },
 };
