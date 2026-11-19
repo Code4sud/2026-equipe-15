@@ -20,6 +20,9 @@ const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'storage-test-'));
 process.env.BACKEND_STORAGE = TMP;
 process.env.RAPPORTS_DIR = PRIVE;
 process.env.LIENS_FICHIER = path.join(TMP, 'liens.json');
+// Jamais d'appel à Ollama dans les tests : sans modèle, le résumé passe en repli.
+process.env.OLLAMA_MODEL = '';
+process.env.OLLAMA_URL = 'http://127.0.0.1:9';
 test.after(() => fs.rmSync(TMP, { recursive: true, force: true }));
 
 const { default: app } = await import('../server.js');
@@ -70,6 +73,43 @@ test('GET /report/{jeton} : analyse du rapport, puis relue depuis le cache', { s
       assert.notEqual(s.value, null);
       assert.equal(s.source.type, 'trace_vectoriel');
     }
+  });
+});
+
+test('POST /report/{jeton}/resume : 4 phrases avec leur page, repli sans Ollama', { skip: sansPdf }, async () => {
+  const { jeton } = creerLien(pdfs[0]);
+  await avecServeur(async (base) => {
+    const analyse = await (await fetch(`${base}/report/${jeton}`)).json();
+    const favoris = { 1: analyse.metiers[0].id, 2: 'inconnu' };
+    const r = await fetch(`${base}/report/${jeton}/resume`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ onboarding: { favoris } }),
+    });
+    assert.equal(r.status, 200);
+    assert.equal(r.headers.get('cache-control'), 'no-store');
+    const resume = await r.json();
+    assert.equal(resume.points.length, 4);
+    for (const p of resume.points) {
+      assert.ok(p.texte);
+      assert.ok(p.page >= 1 && p.page <= analyse.nb_pages);
+    }
+    assert.ok(resume.texte.length > 0);
+    assert.deepEqual(resume.genere_par, { mode: 'repli', modele: null, raison: 'OLLAMA_MODEL non défini' });
+    assert.deepEqual(resume.choix_pris_en_compte.favoris, [analyse.metiers[0].id]);
+    // Un résumé en repli n'est pas mis en cache : l'IA sera réessayée.
+    assert.ok(!fs.readdirSync(path.join(TMP, 'outputs')).some((f) => f.includes('-resume-')));
+
+    // Sans corps, ou avec un onboarding mal formé : toujours un résumé
+    const vide = await fetch(`${base}/report/${jeton}/resume`, { method: 'POST' });
+    assert.equal(vide.status, 200);
+    const mal = await fetch(`${base}/report/${jeton}/resume`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ onboarding: 'n’importe quoi' }),
+    });
+    assert.equal(mal.status, 200);
+    assert.equal((await fetch(`${base}/report/${'a'.repeat(32)}/resume`, { method: 'POST' })).status, 404);
   });
 });
 

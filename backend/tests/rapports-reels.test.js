@@ -14,6 +14,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { analyserRapport } from '../src/report/analyzer.js';
+import { SECTIONS } from '../src/report/sections.js';
+import { construireFaits } from '../src/resume/faits.js';
+import { raisonDeRefus } from '../src/resume/controle.js';
 
 const PRIVE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'prive');
 const pdfs = fs.existsSync(PRIVE) ? fs.readdirSync(PRIVE).filter((f) => f.toLowerCase().endsWith('.pdf')).sort() : [];
@@ -23,6 +26,13 @@ if (!pdfs.length) {
 }
 
 const entier = (v) => Math.abs(v - Math.round(v)) <= 0.05;
+const gabaritsVus = {}; // indice du gabarit d'aptitudes -> nombre de rapports
+
+if (pdfs.length) {
+  test.after(() => {
+    for (const [i, n] of Object.entries(gabaritsVus)) console.log(`# gabarit d'aptitudes ${Number(i) + 1} : ${n} rapport(s)`);
+  });
+}
 
 for (const fichier of pdfs) {
   test(`rapport réel ${fichier} : invariants de l'extraction`, async () => {
@@ -62,6 +72,12 @@ for (const fichier of pdfs) {
       assert.ok(entier(s.value), `aptitude ${s.label} : valeur non entière`);
       assert.ok(s.value >= 0 && s.value <= 7, `aptitude ${s.label} : hors de 0-7`);
     }
+    // Les 9 libellés sont exactement ceux de l'un des gabarits connus, dans
+    // l'ordre des barres : jamais un libellé d'un gabarit posé sur l'autre.
+    const labels = a.aptitudes.map((s) => s.label);
+    const gabarit = SECTIONS.aptitudes.gabarits.findIndex((g) => g.join('|') === labels.join('|'));
+    assert.ok(gabarit >= 0, 'aptitudes : libellés hors des gabarits connus');
+    gabaritsVus[gabarit] = (gabaritsVus[gabarit] || 0) + 1;
 
     // Champ des possibles : zones 1 à 5, 5 métiers au plus par zone, chaque
     // métier a une description (un nom sur deux lignes n'est pas coupé en
@@ -79,7 +95,31 @@ for (const fichier of pdfs) {
     assert.equal(new Set(a.metiers.map((m) => m.id)).size, a.metiers.length, 'identifiants de métiers en double');
 
     // Aucune note d'extraction signalant une lecture douteuse.
-    const douteuses = a.notes.filter((n) => /non entières|au lieu de|non trouvés|aucun tracé|reconnu par sa forme/.test(n));
+    const douteuses = a.notes.filter((n) =>
+      /non entières|au lieu de|non trouvés|aucun tracé|reconnu par sa forme|aucun gabarit|pas lisibles/.test(n)
+    );
     assert.deepEqual(douteuses, [], 'notes de lecture douteuse');
+
+    // Chaque dimension des radars a l'explication écrite sous son encadré.
+    for (const s of [...a.interets_riasec, ...a.personnalite_hexaco]) {
+      assert.ok(s.description && s.description.length > 30, `${s.label} : explication non lue`);
+    }
+    assert.ok(a.avertissement_page >= 1 && a.avertissement_page <= a.nb_pages, 'page de l’avertissement');
+
+    // Résumé : faits avec une page du rapport, sans vocabulaire de score, et
+    // phrases du repli conformes au contrôle — sans onboarding, et avec un
+    // onboarding qui choisit le premier métier de chaque zone.
+    const favoris = {};
+    for (const m of a.metiers) favoris[m.zone] ??= m.id;
+    const interets_metiers = Object.fromEntries(a.metiers.map((m, i) => [m.id, i % 2 ? 'interesse' : 'non']));
+    for (const onboarding of [null, { favoris, interets_metiers }]) {
+      const { faits } = construireFaits(a, onboarding);
+      assert.ok(faits.length >= 4, 'moins de 4 faits pour le résumé');
+      for (const f of faits) {
+        assert.ok(f.page >= 1 && f.page <= a.nb_pages, `${f.id} : page hors du rapport`);
+        assert.doesNotMatch(f.texte, /score|faible/i, `${f.id} : vocabulaire de score transmis`);
+        assert.equal(raisonDeRefus(f.phrase, [f]), null, `${f.id} : phrase du repli refusée`);
+      }
+    }
   });
 }

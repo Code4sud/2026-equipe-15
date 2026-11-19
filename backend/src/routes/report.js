@@ -1,9 +1,11 @@
 // Routes /report : analyse d'un Rapport des Possibles déjà rangé dans notre
 // base (prive/), désigné par le jeton du lien reçu par mail. // JF
 //
-// GET /report/{jeton}        : analyse complète (JSON avec sources)
-// GET /report/{jeton}/scores : uniquement les scores des graphiques, avec leurs
-//                              sources (page, section, type de lecture)
+// GET  /report/{jeton}        : analyse complète (JSON avec sources)
+// GET  /report/{jeton}/scores : uniquement les scores des graphiques, avec leurs
+//                               sources (page, section, type de lecture)
+// POST /report/{jeton}/resume : résumé écrit (4 phrases avec leur page, et un
+//                               texte), corps facultatif { onboarding }
 //
 // Pas d'authentification : le jeton (aléatoire, 128 bits) est la seule clé.
 // Aucune route ne liste les jetons ni les rapports, et un jeton mal formé ou
@@ -11,10 +13,14 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { Router } from 'express';
-import { analyserRapport } from '../report/analyzer.js';
+import { analyserRapport, VERSION_EXTRACTION } from '../report/analyzer.js';
 import { dossiersStockage } from '../storage.js';
 import { rapportDuJeton } from '../liens.js';
+import { genererResume } from '../resume/generer.js';
+import { nettoyerOnboarding } from '../resume/faits.js';
+import { configOllama } from '../ai/ollama.js';
 
 export const router = Router();
 
@@ -26,7 +32,8 @@ async function analyseDuJeton(jeton) {
   const { outputs } = dossiersStockage();
   const cache = path.join(outputs, `${jeton}.json`);
   if (fs.existsSync(cache) && fs.statSync(cache).mtimeMs >= fs.statSync(pdf).mtimeMs) {
-    return JSON.parse(fs.readFileSync(cache, 'utf8'));
+    const enCache = JSON.parse(fs.readFileSync(cache, 'utf8'));
+    if (enCache.version_extraction === VERSION_EXTRACTION) return enCache;
   }
   const analyse = await analyserRapport(pdf, path.basename(pdf), jeton);
   fs.mkdirSync(outputs, { recursive: true });
@@ -62,3 +69,31 @@ router.get('/:jeton/scores', (req, res) =>
     personnalite_hexaco: analyse.personnalite_hexaco,
   }))
 );
+
+// Le résumé dépend des choix de l'onboarding (gardés dans le navigateur du
+// jeune) : le front les envoie dans le corps. Mis en cache par jeton, choix et
+// modèle ; un résumé entièrement en repli (Ollama absent) n'est pas gardé,
+// pour que l'IA soit réessayée à l'appel suivant.
+router.post('/:jeton/resume', async (req, res) => {
+  try {
+    const analyse = await analyseDuJeton(req.params.jeton);
+    if (!analyse) return res.status(404).json({ detail: 'Rapport introuvable' });
+    const onboarding = req.body?.onboarding ?? null;
+    const cle = crypto
+      .createHash('sha256')
+      .update(JSON.stringify({ choix: nettoyerOnboarding(onboarding, analyse), modele: configOllama().modele }))
+      .digest('hex')
+      .slice(0, 16);
+    const cache = path.join(dossiersStockage().outputs, `${req.params.jeton}-resume-${cle}.json`);
+    const pdf = rapportDuJeton(req.params.jeton);
+    if (fs.existsSync(cache) && fs.statSync(cache).mtimeMs >= fs.statSync(pdf).mtimeMs) {
+      return res.json(JSON.parse(fs.readFileSync(cache, 'utf8')));
+    }
+    const resume = await genererResume(analyse, onboarding);
+    if (resume.genere_par.mode !== 'repli') fs.writeFileSync(cache, JSON.stringify(resume, null, 2));
+    res.json(resume);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ detail: 'Erreur interne pendant la génération du résumé' });
+  }
+});

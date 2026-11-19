@@ -11,6 +11,11 @@ Lancer :
     npm start          # API sur http://localhost:8000
     npm test           # tests sur les rapports de prive/ (sautés si prive/ est vide)
     npm run lien -- rapport.pdf   # crée le jeton du lien à envoyer par mail
+    npm run resume -- rapport.pdf # essai du résumé écrit dans le terminal (modèle du .env)
+
+IA : Ollama en local. Le modèle se règle dans backend/.env (OLLAMA_MODEL,
+voir .env.example) ; sans modèle, le résumé est construit sans IA à partir
+des mêmes faits (repli). Les tests n'appellent jamais Ollama.
 
 Accès : pas d'authentification. Le jeune ouvre sa page depuis un lien reçu
 par mail, qui porte un jeton aléatoire (32 caractères hexadécimaux). Pour
@@ -33,6 +38,12 @@ backend/
 │   ├── text.js             # normaliser() : comparaison de titres/mots-clés sans accents
 │   ├── pdfReader.js        # lecture bas niveau du PDF (pdfjs-dist) : texte, lignes stylées,
 │   │                       #   tracés vectoriels (radars), rectangles pleins (histogrammes)
+│   ├── ai/
+│   │   └── ollama.js       # client Ollama (OLLAMA_URL, OLLAMA_MODEL, OLLAMA_THINK…), réponse en JSON
+│   ├── resume/
+│   │   ├── faits.js        # les faits du résumé, chacun avec sa page (seule matière donnée au modèle)
+│   │   ├── controle.js     # refus des phrases sans fait, avec un nombre inventé ou un mot interdit
+│   │   └── generer.js      # résumé : modèle + contrôle + repli sans IA
 │   ├── report/
 │   │   ├── sections.js     # structure connue du rapport : sections, mots-clés, pages
 │   │   ├── scores.js       # lecture des scores sur les tracés (radar, histogramme) + géométrie
@@ -43,9 +54,11 @@ backend/
 │                           # (chat.js et synthesis.js viendront ici : /chat, /synthesis)
 │
 ├── scripts/
-│   └── creerLien.js        # npm run lien -- <fichier.pdf> : jeton ajouté à prive/liens.json
+│   ├── creerLien.js        # npm run lien -- <fichier.pdf> : jeton ajouté à prive/liens.json
+│   └── essaiResume.js      # npm run resume -- <fichier.pdf> : résumé affiché dans le terminal
 │
 ├── tests/
+│   ├── resume.test.js                     # faits, contrôle, résumé (modèle factice, analyse inventée)
 │   ├── report.test.js                     # routes /report et jetons, sur les PDF de prive/
 │   └── rapports-reels.test.js             # invariants sur les vrais PDF de prive/ (local seulement,
 │                                          #   sauté si prive/ est vide ; aucune valeur réelle écrite)
@@ -58,6 +71,11 @@ Routes actuelles :
     GET  /report/{jeton}        : analyse complète (JSON avec sources), calculée à la
                                   première consultation puis relue depuis storage/outputs/
     GET  /report/{jeton}/scores : les 3 graphiques (RIASEC, aptitudes, HEXACO) avec leurs sources
+    POST /report/{jeton}/resume : résumé écrit, corps facultatif { onboarding } (forme du contrat).
+                                  Renvoie points [{ texte, page, fait, origine }], texte, phrases,
+                                  faits [{ id, page, texte }], genere_par { mode, modele, raison },
+                                  controle { phrases_refusees, raisons }, choix_pris_en_compte.
+                                  Mis en cache par jeton, choix et modèle (sauf en repli complet).
     Jeton mal formé ou inconnu : 404 « Rapport introuvable », toujours la même réponse.
     Réponses en Cache-Control: no-store et Referrer-Policy: no-referrer (données personnelles).
 

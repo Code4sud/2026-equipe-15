@@ -122,18 +122,50 @@ function marquerPointsForts(page, scores, labelsConnus) {
   ].filter((f) => f.couleur === ROSE || f.couleur === BLEU);
 
   const couleurParLabel = {};
+  const formeParLabel = {};
   for (const f of formes) {
     for (const ligne of page.lignes) {
       if (ligne.xCentre < f.x0 || ligne.xCentre > f.x1 || ligne.baseline < f.haut || ligne.haut > f.bas) continue;
       const label = labelCanonique(ligne.texte, labelsConnus);
-      if (labelsConnus.includes(label)) couleurParLabel[label] = f.couleur;
+      if (labelsConnus.includes(label)) {
+        couleurParLabel[label] = f.couleur;
+        formeParLabel[label] = f;
+      }
     }
   }
   if (!Object.keys(couleurParLabel).length) return 'encadrés de couleur non trouvés : point_fort non renseigné';
+  const encadres = Object.values(formeParLabel);
   for (const s of scores) {
     if (couleurParLabel[s.label]) s.point_fort = couleurParLabel[s.label] === ROSE;
+    if (formeParLabel[s.label]) s.description = texteSousEncadre(page, formeParLabel[s.label], encadres);
   }
   return null;
+}
+
+// Texte du rapport écrit sous un encadré (l'explication de la dimension), lu
+// morceau par morceau dans sa colonne : les lignes de deux colonnes voisines
+// sont parfois fusionnées par le regroupement en lignes. S'arrête à
+// l'encadré suivant de la colonne ou au premier grand blanc.
+function texteSousEncadre(page, f, encadres) {
+  const aDroite = encadres.map((e) => e.x0).filter((x) => x > f.x0 + 50);
+  const xMax = aDroite.length ? Math.min(...aDroite) - 5 : page.largeur;
+  const dessous = encadres.filter((e) => Math.abs(e.x0 - f.x0) < 20 && e.haut > f.bas).map((e) => e.haut);
+  const yMax = Math.min(dessous.length ? Math.min(...dessous) : Infinity, f.bas + 150, page.hauteur * 0.92);
+  const morceaux = page.mots
+    .filter((m) => m.texte.trim() && m.x0 >= f.x0 - 10 && m.x0 < xMax && m.yCentre > f.bas && m.yCentre < yMax)
+    .sort((a, b) => Math.round(a.yCentre / 3) - Math.round(b.yCentre / 3) || a.x0 - b.x0);
+  const lignes = [];
+  for (const m of morceaux) {
+    const derniere = lignes[lignes.length - 1];
+    if (derniere && Math.abs(m.yCentre - derniere.y) <= 3) {
+      derniere.texte += (m.x0 - derniere.x1 > 1 ? ' ' : '') + m.texte;
+      derniere.x1 = m.x1;
+    } else {
+      if (derniere && m.yCentre - derniere.y > 25) break; // grand blanc : fin du paragraphe
+      lignes.push({ texte: m.texte, y: m.yCentre, x1: m.x1 });
+    }
+  }
+  return lignes.map((l) => l.texte.trim()).join(' ').replace(/\s+/g, ' ').trim() || null;
 }
 
 function lireHistogramme(page, cfg) {
@@ -165,46 +197,43 @@ function lireHistogramme(page, cfg) {
     .sort((a, b) => a.xCentre - b.xCentre);
   if (!barres.length) return { scores: [], note: null };
 
-  const labels = cfg.labels;
+  const gabarits = cfg.gabarits || [cfg.labels];
   const detail =
     `lu sur le tracé vectoriel : hauteur de la barre mesurée avec les graduations de l'axe (0 à ${axeMax}) ; ` +
-    `libellé imposé par le code, associé à la barre par le texte pivoté écrit dessous`;
+    `libellé lu sous la barre et reconnu dans un gabarit connu du rapport`;
   const notes = [];
   const pivotes = page.textesPivotes.slice().sort((a, b) => a.xFin - b.xFin);
   const source = { page: page.numero, section: cfg.titre, type: 'trace_vectoriel', detail };
+  const absent = { page: page.numero, section: cfg.titre, type: 'absent', detail: 'libellés des aptitudes non reconnus : valeur non donnée' };
   const valeurDe = (barre) => Math.round(((barre.bas - barre.haut) / parUnite) * 10) / 10;
 
+  // Le gabarit dont les 9 libellés sont exactement ceux lus sous les barres,
+  // dans l'ordre. On ne devine pas : sans gabarit reconnu, une barre ne peut
+  // pas être nommée, donc aucune valeur n'est donnée.
+  const lus = pivotes.map((t) => t.texte);
+  const gabarit = gabarits.find((g) => g.length === lus.length && g.every((l, i) => comparable(l) === comparable(lus[i])));
+
   let scores;
-  if (pivotes.length === labels.length) {
-    // Une étiquette pivotée par aptitude : chaque barre est rattachée à
-    // l'étiquette qui se termine sous elle. Pas de barre = valeur 0.
-    const lus = [];
-    scores = labels.map((label, i) => {
-      const etiquette = pivotes[i];
-      lus.push(etiquette.texte);
-      const barre = barres.find((b) => etiquette.xFin >= b.x0 - 8 && etiquette.xFin <= b.x1 + 8);
+  if (gabarit) {
+    // Chaque barre est rattachée à l'étiquette qui se termine sous elle.
+    // Pas de barre = valeur 0.
+    scores = gabarit.map((label, i) => {
+      const barre = barres.find((b) => pivotes[i].xFin >= b.x0 - 8 && pivotes[i].xFin <= b.x1 + 8);
       if (!barre) notes.push(`aucune barre au-dessus de « ${label} » : lue comme 0`);
       return { label, value: barre ? valeurDe(barre) : 0, echelle_max: cfg.echelleMax, source };
     });
-    const differents = labels.filter((l, i) => comparable(l) !== comparable(lus[i]));
-    if (differents.length) {
-      notes.push(
-        `les libellés écrits sous les barres ne sont pas ceux attendus (${lus.join(', ')}) : ` +
-          `libellés attendus conservés, à vérifier sur le PDF`
-      );
-    }
   } else {
-    // Étiquettes non lues : association de gauche à droite.
-    notes.push(`${pivotes.length} libellés lus sous les barres au lieu de ${labels.length} : barres associées de gauche à droite`);
-    if (barres.length !== labels.length) notes.push(`${barres.length} barres trouvées au lieu de ${labels.length}`);
-    scores = barres.map((barre, i) => ({
-      label: i < labels.length ? labels[i] : `aptitude ${i + 1}`,
-      value: valeurDe(barre),
-      echelle_max: cfg.echelleMax,
-      source,
-    }));
+    notes.push(
+      lus.length
+        ? `les libellés écrits sous les barres ne correspondent à aucun gabarit connu (${lus.join(', ')}) : valeurs non données`
+        : 'les libellés écrits sous les barres ne sont pas lisibles : valeurs non données'
+    );
+    const labels = lus.length === gabarits[0].length ? lus : gabarits[0];
+    scores = labels.map((label) => ({ label, value: null, echelle_max: cfg.echelleMax, source: absent }));
   }
-  const nonEntieres = scores.filter((s) => Math.abs(s.value - Math.round(s.value)) > 0.05).map((s) => s.label);
+  const nonEntieres = scores
+    .filter((s) => s.value !== null && Math.abs(s.value - Math.round(s.value)) > 0.05)
+    .map((s) => s.label);
   if (nonEntieres.length) notes.push(`valeurs non entières, lecture à vérifier : ${nonEntieres.join(', ')}`);
   return { scores, note: [detail, ...notes].join(' ; ') };
 }

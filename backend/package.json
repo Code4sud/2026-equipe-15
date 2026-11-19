@@ -8,7 +8,8 @@
   "scripts": {
     "start": "node server.js",
     "test": "node --test \"tests/*.test.js\"",
-    "lien": "node scripts/creerLien.js"
+    "lien": "node scripts/creerLien.js",
+    "resume": "node scripts/essaiResume.js"
   },
   "engines": {
     "node": ">=20"
