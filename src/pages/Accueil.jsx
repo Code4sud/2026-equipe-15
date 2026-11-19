@@ -11,11 +11,9 @@ export default function Accueil() {
       <EnTete />
       <main className="pb-securite mx-auto max-w-6xl px-4 pt-6 lg:pb-12">
         <div className="apparait mb-6">
-          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-            Salut <span aria-hidden="true">👋</span>
-          </h1>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Salut</h1>
           <p className="mt-1 text-doux">
-            Voici ton rapport, en clair. Ce sont des <span className="font-semibold text-violet-clair">pistes</span>, et tu peux changer d'avis quand tu veux.
+            Voici ton rapport, en clair. Ce sont des <span className="font-semibold text-texte">pistes</span>, et tu peux changer d'avis quand tu veux.
           </p>
         </div>
 

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Check, ArrowUpRight, Footprints } from 'lucide-react'
+import { Check, ArrowUpRight } from 'lucide-react'
 import { metierParId } from '../lib/donnees.js'
 import { useOnboarding, usePremiersPasCoches } from '../lib/stockage.js'
 
@@ -30,16 +30,11 @@ export default function PremiersPas() {
   return (
     <section aria-labelledby="titre-pas" className="carte apparait p-5 sm:p-6" style={{ animationDelay: '120ms' }}>
       <div className="flex items-center justify-between gap-3">
-        <h2 id="titre-pas" className="flex items-center gap-2 text-lg font-bold">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-400/15 text-emerald-300">
-            <Footprints size={17} aria-hidden="true" />
-          </span>
-          Tes premiers pas
-        </h2>
+        <h2 id="titre-pas" className="text-lg font-semibold">Tes premiers pas</h2>
         <span className="text-sm text-doux" aria-live="polite">{faites} sur {actions.length}</span>
       </div>
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/5" aria-hidden="true">
-        <div className="h-full rounded-full bg-gradient-to-r from-violet to-emerald-400 transition-all duration-500" style={{ width: `${(faites / actions.length) * 100}%` }} />
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-ligne" aria-hidden="true">
+        <div className="h-full rounded-full bg-repere transition-all duration-500" style={{ width: `${(faites / actions.length) * 100}%` }} />
       </div>
 
       <ul className="mt-4 space-y-1">
@@ -56,7 +51,7 @@ export default function PremiersPas() {
                 onClick={() => basculer(action.id)}
                 className="grid h-11 w-11 shrink-0 place-items-center"
               >
-                <span className={`grid h-6 w-6 place-items-center rounded-md border-2 transition ${fait ? 'border-emerald-400 bg-emerald-400 text-fond' : 'border-white/25'}`}>
+                <span className={`grid h-6 w-6 place-items-center rounded-md border-2 transition ${fait ? 'border-coche bg-coche text-fond' : 'border-doux'}`}>
                   {fait && <Check size={15} strokeWidth={3.5} aria-hidden="true" />}
                 </span>
               </button>

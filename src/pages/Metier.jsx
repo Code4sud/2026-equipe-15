@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Hourglass, FileText } from 'lucide-react'
+import { ArrowLeft, FileText } from 'lucide-react'
 import { metierParId, dureeDeZone } from '../lib/donnees.js'
 import Bientot from './Bientot.jsx'
 
@@ -15,10 +15,8 @@ export default function Metier() {
         <ArrowLeft size={18} aria-hidden="true" /> Retour
       </Link>
       <article className="carte apparait mt-3 p-6">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-violet/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-violet-clair">
-          <Hourglass size={13} aria-hidden="true" /> {dureeDeZone(metier.zone)}
-        </span>
-        <h1 className="mt-3 text-3xl font-extrabold tracking-tight">{metier.nom}</h1>
+        <p className="text-xs font-bold uppercase tracking-wide text-violet-clair">{dureeDeZone(metier.zone)}</p>
+        <h1 className="mt-1 text-3xl font-bold tracking-tight">{metier.nom}</h1>
         <p className="mt-4 text-lg leading-relaxed">{metier.description}</p>
         <Link to={`/rapport/${metier.source.page}`} className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-violet-clair hover:underline">
           <FileText size={15} aria-hidden="true" /> Voir dans ton rapport, page {metier.source.page}

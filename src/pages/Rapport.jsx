@@ -59,7 +59,7 @@ export default function Rapport() {
 
   return (
     <div className="min-h-dvh bg-carte-2">
-      <header className="sticky top-[var(--bandeau,0px)] z-10 flex h-14 items-center justify-between border-b border-ligne bg-fond/90 px-2 backdrop-blur-xl">
+      <header className="sticky top-[var(--bandeau,0px)] z-10 flex h-14 items-center justify-between border-b border-ligne bg-entete px-2">
         <Link to="/" className="inline-flex min-h-11 items-center gap-2 rounded-full px-3 font-semibold">
           <ArrowLeft size={18} aria-hidden="true" /> Retour
         </Link>
@@ -68,7 +68,7 @@ export default function Rapport() {
       {erreur ? (
         <div className="text-center">
           {message("Ton rapport n'est pas disponible pour l'instant.")}
-          <Link to="/" className="inline-flex min-h-12 items-center rounded-full bg-violet px-6 font-semibold">Retour à ma page</Link>
+          <Link to="/" className="inline-flex min-h-12 items-center rounded-full bg-violet px-6 font-semibold text-white">Retour à ma page</Link>
         </div>
       ) : (
         <Document

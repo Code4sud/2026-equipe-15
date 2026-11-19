@@ -1,19 +1,48 @@
 @import "tailwindcss";
 
+/* Thème sombre (par défaut) : les couleurs du site du Centre des Possibles, en aplats. */
 @theme {
-  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
-  --color-fond: #0b0a14;
-  --color-carte: #15131f;
-  --color-carte-2: #1c1929;
-  --color-ligne: rgb(255 255 255 / 0.08);
-  --color-texte: #f4f2ff;
-  --color-doux: #a9a3c4;
-  --color-violet: #8b5cf6;
-  --color-violet-clair: #c4b5fd;
-  --color-violet-fonce: #5b21b6;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-titre: "Outfit", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-fond: #12123a;
+  --color-entete: #12123a;
+  --color-carte: #1b1b52;
+  --color-carte-2: #24246a;
+  --color-ligne: #2f2f78;
+  --color-texte: #f3f3fc;
+  --color-doux: #bcbee0;
+  /* violet : fond des boutons (texte blanc dessus). violet-clair : texte et icônes d'accent. */
+  --color-violet: #5d62ea;
+  --color-violet-clair: #a3a6ff;
+  --color-violet-fonce: #4b50d6;
+  /* repere : la touche de couleur (surtitres, barre de progression). */
+  --color-repere: #ff8cc6;
+  --color-coche: #a3a6ff;
+  --color-coche-fond: #2b2b7a;
 }
 
-html { -webkit-text-size-adjust: 100%; }
+/* Thème clair : mêmes noms, autres valeurs. Activé par data-theme="clair" sur <html>. */
+:root[data-theme="clair"] {
+  --color-fond: #f4f4fa;
+  --color-entete: #ffffff;
+  --color-carte: #ffffff;
+  --color-carte-2: #efeff8;
+  --color-ligne: #dcddec;
+  --color-texte: #16163f;
+  --color-doux: #55597a;
+  --color-violet: #4b50d6;
+  --color-violet-clair: #4b50d6;
+  --color-violet-fonce: #3a3fb8;
+  --color-repere: #4b50d6;
+  --color-coche: #1f7a4d;
+  --color-coche-fond: #e7f4ec;
+  color-scheme: light;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  color-scheme: dark;
+}
 
 body {
   margin: 0;
@@ -26,18 +55,8 @@ body {
   overflow-x: hidden;
 }
 
-/* Halo violet derrière la page */
-body::before {
-  content: "";
-  position: fixed;
-  inset: -20% -10% auto -10%;
-  height: 70vh;
-  background:
-    radial-gradient(40% 50% at 20% 30%, rgb(139 92 246 / 0.28), transparent 70%),
-    radial-gradient(35% 45% at 85% 10%, rgb(56 189 248 / 0.14), transparent 70%);
-  filter: blur(20px);
-  pointer-events: none;
-  z-index: -1;
+@layer base {
+  h1, h2, h3 { font-family: var(--font-titre); }
 }
 
 :focus-visible {
@@ -47,9 +66,9 @@ body::before {
 }
 
 .carte {
-  background: linear-gradient(180deg, rgb(255 255 255 / 0.035), transparent 40%), var(--color-carte);
+  background: var(--color-carte);
   border: 1px solid var(--color-ligne);
-  border-radius: 24px;
+  border-radius: 16px;
 }
 
 @keyframes apparait {
