@@ -2,9 +2,25 @@
   "nom": "Possibles.AI",
   "pitch": "Ton Rapport des Possibles, sur ton téléphone : tu redis en deux minutes ce que tu as retenu avec le psychologue, et le site te rend un résumé à lire ou à écouter, tes métiers préférés et tes premiers pas. Chaque phrase renvoie à la page du rapport d'où elle vient.",
   "description": "Après sa demi-journée au Centre des Possibles, un jeune repart avec 17 pages de graphiques et de noms de métiers, et le souvenir d'un entretien. Le rapport qu'il reçoit ensuite par mail n'a pas les annotations faites avec le psychologue. Une semaine plus tard, il n'en reste presque rien.\n\nPossibles.AI reprend là où l'entretien s'arrête. Le jeune ouvre le lien reçu par mail, sur son téléphone, et redit en deux minutes ce qui s'est décidé pendant l'entretien : les métiers qui l'intéressent, ceux qui ne lui parlent pas, son préféré dans chaque zone, et ceux que le psychologue a ajoutés. Le rapport peut se tromper : c'est le jeune qui a le dernier mot.\n\nÀ partir du rapport et de ces choix, le site lui rend un résumé court, à lire ou à écouter, ses métiers préférés par temps de préparation, et une liste de premiers pas. Chaque phrase du résumé ouvre le rapport à la page d'où elle vient.\n\nLes scores sont lus directement dans le PDF, par la géométrie des graphiques, sans rien deviner. Le texte est généré par un modèle ouvert qui tourne en local : le rapport ne quitte pas l'ordinateur. Aucune note, aucun classement : le produit prolonge l'entretien, il ne le remplace pas.",
-  "ecoles": ["42 Nice", "Epitech"],
-  "stack": ["Node.js", "Express", "pdfjs-dist", "Ollama"],
-  "demo": "",
+  "ecoles": [
+    "42 Nice",
+    "Epitech"
+  ],
+  "stack": [
+    "React",
+    "Vite",
+    "Tailwind CSS",
+    "Node.js",
+    "Express",
+    "pdfjs-dist",
+    "Ollama",
+    "Qwen 3.6"
+  ],
+  "demo": "https://code4sud.github.io/2026-equipe-15/",
   "video": "",
-  "captures": []
+  "captures": [
+    "captures/1-parcours.jpg",
+    "captures/2-onboarding-resume.jpg",
+    "captures/3-profil-metier.jpg"
+  ]
 }
