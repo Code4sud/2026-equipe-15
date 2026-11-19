@@ -1,169 +1,13 @@
-// Extraction sémantique du Rapport des Possibles. // JF — portage Node
-//
-// Transforme les pages brutes produites par `pdfService` en objet
-// ReportAnalysis (voir models/schemas.py côté Python, même forme JSON) :
-// - les sections du rapport : chaque graphique a son titre en première
-//   ligne de page (« MESURE D'INTÉRÊTS PROFESSIONNELS »…), ce qui permet
-//   d'éviter le sommaire ;
-// - les scores des graphiques, lus sur les tracés vectoriels du PDF :
-//   radars = anneaux concentriques + polygone de données, histogramme =
-//   barres sur une même ligne de base. Chaque score porte sa source
-//   (page, section, type de lecture) ;
-// - les métiers du champ des possibles (« 1ère ZONE DE MÉTIERS »…), avec
-//   leur zone et sa description (« Métiers accessibles en 0 à 6 mois ») ;
-// - l'avertissement final (page « travaux expérimentaux »).
-//
-// Si un graphique est une image (pas de tracé vectoriel), on ne devine
-// rien : les scores sont retournés avec value=null et source.type="absent".
+// Lecture des scores sur les tracés vectoriels des graphiques du rapport :
+// - radar = anneaux concentriques + polygone de données excentré ;
+// - histogramme = barres sur une même ligne de base, la plus haute vaut le max.
+// Chaque score porte sa source (page, section, type de lecture).
+// Si un graphique est une image (pas de tracé), on ne devine rien :
+// value=null et source.type="absent".
 
-import crypto from 'node:crypto';
-import { extrairePages, normaliser } from './pdfService.js';
+import { normaliser } from '../text.js';
 
-// ─── Structure connue du rapport (AGENTS.md, section 4, et les vrais PDF) ────
-
-export const SECTIONS = {
-  interets: {
-    titre: 'Intérêts professionnels',
-    motsCles: ["mesure d'interets professionnels", 'riasec'],
-    titreEnPremiereLigne: true,
-    graphique: 'radar',
-    echelleMax: 100.0, // pas d'échelle chiffrée : on lit un relatif, l'anneau extérieur vaut 100
-    labels: ['Réaliste', 'Investigateur', 'Artistique', 'Social', 'Entreprenant', 'Conventionnel'],
-  },
-  aptitudes: {
-    titre: 'Aptitudes cognitives',
-    motsCles: ["mesure d'aptitudes cognitives"],
-    titreEnPremiereLigne: true,
-    graphique: 'histogramme',
-    echelleMax: 7.0, // notées de 0 à 7 dans le rapport
-    labels: [
-      'Originalité',
-      'Raisonnement déductif',
-      'Raisonnement inductif',
-      'Flexibilité des catégories',
-      'Facilité avec les nombres',
-      'Mémorisation',
-      'Visualisation',
-      'Attention sélective',
-      'Partage du temps',
-    ],
-  },
-  personnalite: {
-    titre: 'Personnalité',
-    motsCles: ['mesure de personnalite', 'hexaco'],
-    titreEnPremiereLigne: true,
-    graphique: 'radar',
-    echelleMax: 100.0,
-    labels: [
-      'Émotivité',
-      'Extraversion',
-      'Agréabilité',
-      'Caractère consciencieux',
-      'Humilité-honnêteté',
-      'Ouverture à l’expérience',
-    ],
-  },
-  champ: {
-    titre: 'Champ des possibles',
-    motsCles: ['champ des possibles', 'zone de metiers'],
-    titreEnPremiereLigne: false,
-  },
-  avertissement: {
-    titre: 'Avertissement',
-    motsCles: ['avertissement', 'travaux experimentaux', 'resultats presentes dans ce bilan'],
-    titreEnPremiereLigne: false,
-  },
-};
-
-// Section -> champ de l'analyse qui recevra les scores
-const CHAMPS_SCORES = {
-  interets: 'interets_riasec',
-  aptitudes: 'aptitudes',
-  personnalite: 'personnalite_hexaco',
-};
-
-// « 1ère ZONE DE MÉTIERS », « 2ème ZONE DE MÉTIERS »… (texte normalisé)
-const ZONE_RE = /(\d+)\s*[a-z]*\s*zone de m/;
-
-// ─── Point d'entrée public ────────────────────────────────────────────────────
-
-export async function analyserRapport(chemin, nomFichier, idAnalyse = null) {
-  const pages = await extrairePages(chemin);
-  const sections = detecterSections(pages);
-  const notes = [];
-
-  const analyse = {
-    id: idAnalyse || crypto.randomUUID().replace(/-/g, ''),
-    fichier: nomFichier,
-    nb_pages: pages.length,
-    rdv: extraireRdv(pages),
-    sections_detectees: Object.keys(SECTIONS).filter((cle) => sections[cle]).map((cle) => SECTIONS[cle].titre),
-  };
-
-  for (const [cle, champ] of Object.entries(CHAMPS_SCORES)) {
-    const cfg = SECTIONS[cle];
-    let numeros = sections[cle] || [];
-    if (cfg.titreEnPremiereLigne) {
-      // Pages dont la première ligne est le titre de la section
-      // graphique (évite le sommaire).
-      const pagesTitre = pagesAvecTitreEnPremiereLigne(pages, cfg);
-      numeros = pagesTitre.length ? pagesTitre : numeros;
-    }
-    const { scores, note } = lireScores(pages, numeros, cfg);
-    if (note) notes.push(`${cfg.titre} — ${note}`);
-    analyse[champ] = scores;
-  }
-
-  analyse.metiers = extraireMetiers(pages, sections.champ || [], notes);
-  analyse.avertissement = extraireAvertissement(pages, sections.avertissement || []);
-  analyse.notes = notes;
-  return analyse;
-}
-
-// ─── Sections et divers ───────────────────────────────────────────────────────
-
-export function detecterSections(pages) {
-  // Pour chaque section connue, les numéros de pages où elle apparaît
-  // (mots-clés cherchés dans le texte normalisé de toute la page).
-  const trouvees = {};
-  for (const page of pages) {
-    const texteNorm = normaliser(page.texte);
-    for (const [cle, cfg] of Object.entries(SECTIONS)) {
-      if (cfg.motsCles.some((m) => texteNorm.includes(m))) {
-        (trouvees[cle] = trouvees[cle] || []).push(page.numero);
-      }
-    }
-  }
-  return trouvees;
-}
-
-function pagesAvecTitreEnPremiereLigne(pages, cfg) {
-  const resultat = [];
-  for (const page of pages) {
-    if (page.lignes.length && cfg.motsCles.some((m) => normaliser(page.lignes[0].texte).includes(m))) {
-      resultat.push(page.numero);
-    }
-  }
-  return resultat;
-}
-
-export function extraireRdv(pages) {
-  // Retourne la mention « Rdv … » du rapport (ex. « Rdv FICTIF » en test).
-  for (const page of pages) {
-    const m = page.texte.match(/Rdv\s*n?°?\s*[A-Za-z0-9-]+/);
-    if (m) return m[0].trim();
-  }
-  return null;
-}
-
-function extraireAvertissement(pages, numeros) {
-  if (!numeros.length) return null;
-  return numeros.map((n) => (pages[n - 1].texte || '').trim()).join('\n').trim() || null;
-}
-
-// ─── Scores des graphiques ────────────────────────────────────────────────────
-
-function lireScores(pages, numerosPages, cfg) {
+export function lireScores(pages, numerosPages, cfg) {
   // Lit les scores sur la première page de la section qui contient un
   // graphique. Repli honnête : labels connus, value=null, type « absent ».
   for (const numero of numerosPages) {
@@ -256,7 +100,7 @@ function lireHistogramme(page, cfg) {
 
 // ─── Géométrie des graphiques ─────────────────────────────────────────────────
 
-function distance(p, centre) {
+export function distance(p, centre) {
   return Math.hypot(p[0] - centre[0], p[1] - centre[1]);
 }
 
@@ -281,7 +125,7 @@ function estPolygoneRadar(c, page) {
   const ys = c.points.map((p) => p[1]);
   const largeur = Math.max(...xs) - Math.min(...xs);
   const hauteur = Math.max(...ys) - Math.min(...ys);
-  const [cx, cy] = c.centre;
+  const [, cy] = c.centre;
   return largeur >= 25 && hauteur >= 25 && largeur / hauteur >= 0.4 && largeur / hauteur <= 2.5 && cy < 0.85 * page.hauteur;
 }
 
@@ -377,56 +221,4 @@ function ordonnerScores(scores, labelsConnus) {
   const ordre = {};
   labelsConnus.forEach((l, i) => (ordre[normaliser(l)] = i));
   return scores.slice().sort((a, b) => (ordre[normaliser(a.label)] ?? 999) - (ordre[normaliser(b.label)] ?? 999));
-}
-
-// ─── Champ des possibles (métiers et zones) ───────────────────────────────────
-
-function extraireMetiers(pages, numerosPages, notes) {
-  // Dans le champ des possibles : une ligne « Nème ZONE DE MÉTIERS » ouvre
-  // une zone (la ligne suivante donne son libellé « Métiers accessibles en
-  // … »), une ligne en gras de taille titre (≥ 13 pt) est un nom de métier,
-  // les lignes suivantes forment sa description.
-  const metiers = [];
-  let zone = null;
-  let zoneLabel = '';
-  let courant = null;
-
-  for (const numero of numerosPages) {
-    const page = pages[numero - 1];
-    const lignes = page.lignes;
-    for (let i = 0; i < lignes.length; i++) {
-      const ligne = lignes[i];
-      const texteNorm = normaliser(ligne.texte);
-      if (!texteNorm) continue;
-      // Vestige de « Nème ZONE DE MÉTIERS » découpé en plusieurs items :
-      // un suffixe ordinal seul n'est jamais un titre de zone ni un métier.
-      if (/^[eè]me$/.test(texteNorm) || /^[eè]re$/.test(texteNorm)) continue;
-      const m = texteNorm.match(ZONE_RE);
-      if (m) {
-        zone = parseInt(m[1], 10);
-        zoneLabel = '';
-        courant = null;
-        if (i + 1 < lignes.length && normaliser(lignes[i + 1].texte).includes('metiers accessibles en')) {
-          zoneLabel = lignes[i + 1].texte.trim();
-        }
-        continue;
-      }
-      if (texteNorm.includes('champ des possibles')) continue;
-      if (ligne.gras && zone !== null && ligne.taille >= 13 && ligne.texte.length <= 90) {
-        courant = {
-          nom: ligne.texte,
-          zone,
-          zone_label: zoneLabel,
-          description: '',
-          source: { page: numero, section: 'Champ des possibles', type: 'texte', detail: 'ligne en gras du rapport' },
-        };
-        metiers.push(courant);
-      } else if (courant) {
-        courant.description = (courant.description + ' ' + ligne.texte).trim();
-      } else if (zone !== null && (texteNorm.includes('aucune proposition') || texteNorm.includes('zone vide'))) {
-        notes.push(`Zone ${zone} (page ${numero}) : ${ligne.texte}`);
-      }
-    }
-  }
-  return metiers;
 }

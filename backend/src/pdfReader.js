@@ -2,7 +2,7 @@
 //
 // Responsabilité unique de ce module : lire le PDF et rendre son contenu
 // brut, sans aucune interprétation sémantique (c'est le rôle de
-// `reportService`) :
+// `report/analyzer.js`) :
 // - le texte de chaque page ;
 // - les lignes avec leur position et leur style (gras) ;
 // - les mots avec leur position (étiquettes des graphiques) ;
@@ -15,43 +15,16 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.min.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const STANDARD_FONTS = path.join(__dirname, '..', 'node_modules', 'pdfjs-dist', 'standard_fonts') + path.sep;
+
 // Taille maximale d'un PDF accepté. 20 Mo par défaut, configurable par
 // variable d'environnement, et de toute façon sous les 50 Mo interdits
 // dans le dépôt.
-export const MAX_UPLOAD_OCTETS = (parseInt(process.env.MAX_UPLOAD_MO || '20', 10)) * 1024 * 1024;
-
-export const DOSSIER_UPLOADS = path.join(__dirname, '..', 'storage', 'uploads');
-
-const STANDARD_FONTS = path.join(__dirname, '..', 'node_modules', 'pdfjs-dist', 'standard_fonts') + path.sep;
-
-export class ErreurUpload extends Error {}
-
-// ─── Upload ───────────────────────────────────────────────────────────────────
-
-export function sauvegarderUpload(contenu, dossier = DOSSIER_UPLOADS, nomOriginal = 'rapport.pdf') {
-  if (!nomOriginal.toLowerCase().endsWith('.pdf')) {
-    throw new ErreurUpload(`Seuls les PDF sont acceptés (reçu : ${nomOriginal})`);
-  }
-  if (contenu.length > MAX_UPLOAD_OCTETS) {
-    throw new ErreurUpload(
-      `PDF trop volumineux : ${(contenu.length / 1048576).toFixed(1)} Mo (max ${MAX_UPLOAD_OCTETS / 1048576} Mo)`
-    );
-  }
-  if (Buffer.from(contenu.slice(0, 5)).toString('latin1') !== '%PDF-') {
-    throw new ErreurUpload("Le fichier ne commence pas par %PDF : ce n'est pas un PDF valide");
-  }
-  fs.mkdirSync(dossier, { recursive: true });
-  const chemin = path.join(dossier, crypto.randomUUID().replace(/-/g, '') + '.pdf');
-  fs.writeFileSync(chemin, contenu);
-  return chemin;
-}
-
 // ─── Lecture du PDF ───────────────────────────────────────────────────────────
 
 export async function extrairePages(chemin) {
@@ -387,14 +360,3 @@ function extraireTraces(opList, { vx0, vy0, vy1 }) {
   return { courbes, barres };
 }
 
-// ─── Normalisation du texte ───────────────────────────────────────────────────
-
-export function normaliser(texte) {
-  // Minuscules, apostrophes ramenées à ', sans accents, espaces réduits.
-  // L'extraction PDF perd parfois les doubles « l » (« travaile ») :
-  // on ne corrige pas le texte brut, on compare sur la version normalisée.
-  const apostrophes = String(texte).toLowerCase().replace(/[’‘ʼ`´]/g, "'");
-  // NFKD décompose, puis on retire les marques combinantes (accents U+0300–U+036F)
-  const sansAccents = apostrophes.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
-  return sansAccents.replace(/\s+/g, ' ').trim();
-}

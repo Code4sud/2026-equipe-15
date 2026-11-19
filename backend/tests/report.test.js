@@ -6,8 +6,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { genererPdfFictif } from './genererRapportFictif.js';
-import { normaliser } from '../src/pdfService.js';
+import { genererPdfFictif } from './fixtures/genererRapportFictif.js';
+import { normaliser } from '../src/text.js';
 
 // Stockage temporaire : les vrais storage/uploads et storage/outputs ne sont
 // jamais touchés par les tests.

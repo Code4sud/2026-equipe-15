@@ -1,37 +1,59 @@
+Backend — Node.js + Express (depuis le 19/11, la stack Python/FastAPI est abandonnée).
 
+Rôle : recevoir un Rapport des Possibles (PDF), en extraire les scores des
+graphiques et les métiers sous forme de JSON avec leurs sources, et plus
+tard dialoguer avec une IA et générer des restitutions personnalisées
+(texte, audio, fiches interactives).
 
-//'analyser des rapports PDF,
-d'extraire les scores, 
-de communiquer avec une IA
-de générer des restitutions personnalisées (texte, audio, fiches interactives).
+Lancer :
+    cd backend
+    npm install
+    npm start          # API sur http://localhost:8000
+    npm test           # tests de bout en bout (PDF fictif « Rdv FICTIF »)
 
-Recevoir un PDF et retourner les scores du graphique sous forme de JSON, avec leurs sources.
-
+Auth : API_TOKEN dans backend/.env (voir .env.example). Si défini, chaque
+requête exige « Authorization: Bearer <API_TOKEN> ». Vide = mode dev ouvert.
 
 backend/
+├── package.json            # dépendances (express, multer, cors, dotenv, pdfjs-dist)
+├── package-lock.json
+├── server.js               # point d'entrée Express (CORS, auth, routes)
+├── .env.example            # noms des variables d'env, sans valeur (.env ignoré)
+├── Backend.txt             # ce fichier
 │
-├── main.py                 # Point d'entrée FastAPI
-├── requirements.txt        # Dépendances Python
-├── .env                    # Clés API et configuration
-├── .gitignore
+├── src/
+│   ├── config.js           # variables d'environnement (PORT, API_TOKEN, CORS, BACKEND_STORAGE, MAX_UPLOAD_MO)
+│   ├── auth.js             # middleware Bearer (verifierToken)
+│   ├── storage.js          # dossiers storage/uploads et storage/outputs
+│   ├── text.js             # normaliser() : comparaison de titres/mots-clés sans accents
+│   ├── upload.js           # dépôt d'un PDF reçu dans storage/uploads (jamais versionné)
+│   ├── pdfReader.js        # lecture bas niveau du PDF (pdfjs-dist) : texte, lignes stylées,
+│   │                       #   tracés vectoriels (radars), rectangles pleins (histogrammes)
+│   ├── report/
+│   │   ├── sections.js     # structure connue du rapport : sections, mots-clés, pages
+│   │   ├── scores.js       # lecture des scores sur les tracés (radar, histogramme) + géométrie
+│   │   ├── metiers.js      # champ des possibles : zones et métiers (lignes en gras)
+│   │   └── analyzer.js     # analyserRapport() : orchestration -> JSON d'analyse
+│   └── routes/
+│       └── report.js       # POST /report/upload, GET /report, GET /report/{id}, GET /report/{id}/scores
+│                           # (chat.py et synthesis.py viendront ici : /chat, /synthesis)
 │
-├── routes/                 # Routes de l'API
-│   ├── __init__.py
-│   ├── report.py           # Importation et analyse des PDF // JF
-│   ├── chat.py             # Questions à l'IA // JULIEN
-│   └── synthesis.py        # Génération des synthèses
-│
-├── services/               # Logique métier
-│   ├── __init__.py
-│   ├── pdf_service.py      # Extraction du texte des PDF // JF
-│   ├── ai_service.py       # Communication avec le modèle IA // JULIEN
-│   ├── report_service.py   # Extraction des scores et compétences // JF
-│   └── audio_service.py    # Génération audio // JULIEN
-│
-├── models/
-│   ├── __init__.py
-│   └── schemas.py          # Structures JSON avec Pydantic
+├── tests/
+│   ├── fixtures/genererRapportFictif.js   # génère un PDF fictif en pur JS (« Rdv FICTIF »)
+│   └── report.test.js                     # tests node --test de bout en bout
 │
 └── storage/
-    ├── uploads/            # PDF temporaires
-    └── outputs/            # Synthèses générées
+    ├── uploads/            # PDF déposés (ignoré par git, .gitkeep seulement)
+    └── outputs/            # analyses JSON générées (idem)
+
+Routes actuelles :
+    POST /report/upload      : dépose un PDF (multipart, champ « fichier »), retourne l'analyse (201)
+    GET  /report             : liste les identifiants d'analyses
+    GET  /report/{id}        : analyse complète (JSON avec sources)
+    GET  /report/{id}/scores : les 3 graphiques (RIASEC, aptitudes, HEXACO) avec leurs sources
+
+À venir (mêmes dossiers) :
+    src/routes/chat.js       # questions à l'IA sur une analyse // JULIEN
+    src/routes/synthesis.js  # génération de synthèses // JULIEN
+    src/ai/                  # client modèle d'IA (Ollama local ou API)
+    src/audio/               # génération audio

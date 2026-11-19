@@ -6,19 +6,14 @@
 // GET  /report/{id}        : relit une analyse complète
 // GET  /report/{id}/scores : uniquement les scores des graphiques, avec leurs
 //                            sources (page, section, type de lecture)
-//
-// Le dossier de stockage se règle par la variable d'environnement
-// `BACKEND_STORAGE` (défaut : `backend/storage`) ; les tests l'écrasent.
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { Router } from 'express';
 import multer from 'multer';
-import { ErreurUpload, MAX_UPLOAD_OCTETS, sauvegarderUpload } from './pdfService.js';
-import { analyserRapport } from './reportService.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { ErreurUpload, MAX_UPLOAD_OCTETS, sauvegarderUpload } from '../upload.js';
+import { analyserRapport } from '../report/analyzer.js';
+import { dossiersStockage } from '../storage.js';
 
 export const router = Router();
 
@@ -31,11 +26,6 @@ const upload = multer({
   limits: { fileSize: MAX_UPLOAD_OCTETS, files: 1 },
 });
 
-function dossiersStockage() {
-  const base = process.env.BACKEND_STORAGE || path.join(__dirname, '..', 'storage');
-  return { uploads: path.join(base, 'uploads'), outputs: path.join(base, 'outputs') };
-}
-
 function cheminAnalyse(analysisId) {
   if (!ID_VALIDE.test(analysisId)) return null;
   const chemin = path.join(dossiersStockage().outputs, `${analysisId}.json`);
@@ -45,16 +35,16 @@ function cheminAnalyse(analysisId) {
 router.post('/upload', upload.single('fichier'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ detail: 'Champ « fichier » (PDF) manquant' });
-    const { uploads, outputs } = dossiersStockage();
-    const cheminPdf = sauvegarderUpload(req.file.buffer, uploads, req.file.originalname);
+    const cheminPdf = sauvegarderUpload(req.file.buffer, req.file.originalname);
     const analyse = await analyserRapport(cheminPdf, req.file.originalname);
+    const { outputs } = dossiersStockage();
     fs.mkdirSync(outputs, { recursive: true });
     fs.writeFileSync(path.join(outputs, `${analyse.id}.json`), JSON.stringify(analyse, null, 2));
     res.status(201).json(analyse);
   } catch (e) {
     if (e instanceof ErreurUpload) return res.status(400).json({ detail: e.message });
     console.error(e);
-    res.status(500).json({ detail: 'Erreur interne pendant l’analyse du PDF' });
+    res.status(500).json({ detail: "Erreur interne pendant l'analyse du PDF" });
   }
 });
 
