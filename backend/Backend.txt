@@ -1,37 +1,68 @@
+Backend — Node.js + Express (depuis le 19/11, la stack Python/FastAPI est abandonnée).
 
+Rôle : lire un Rapport des Possibles (PDF) déjà rangé dans notre base, en
+extraire les scores des graphiques et les métiers sous forme de JSON avec
+leurs sources, et plus tard dialoguer avec une IA et générer des
+restitutions personnalisées (texte, audio, fiches interactives).
 
-//'analyser des rapports PDF,
-d'extraire les scores, 
-de communiquer avec une IA
-de générer des restitutions personnalisées (texte, audio, fiches interactives).
+Lancer :
+    cd backend
+    npm install
+    npm start          # API sur http://localhost:8000
+    npm test           # tests sur les rapports de prive/ (sautés si prive/ est vide)
+    npm run lien -- rapport.pdf   # crée le jeton du lien à envoyer par mail
 
-Recevoir un PDF et retourner les scores du graphique sous forme de JSON, avec leurs sources.
-
+Accès : pas d'authentification. Le jeune ouvre sa page depuis un lien reçu
+par mail, qui porte un jeton aléatoire (32 caractères hexadécimaux). Pour
+l'instant, la « base » est le dossier prive/ (ignoré par git) : les PDF, et
+prive/liens.json, la table jeton -> fichier écrite par `npm run lien`.
+Le jeton est la seule clé : ne jamais le dériver du numéro de rapport, ne
+jamais ajouter de route qui liste les rapports ou les jetons.
 
 backend/
+├── package.json            # dépendances (express, cors, dotenv, pdfjs-dist)
+├── package-lock.json
+├── server.js               # point d'entrée Express (CORS, routes)
+├── .env.example            # noms des variables d'env, sans valeur (.env ignoré)
+├── Backend.txt             # ce fichier
 │
-├── main.py                 # Point d'entrée FastAPI
-├── requirements.txt        # Dépendances Python
-├── .env                    # Clés API et configuration
-├── .gitignore
+├── src/
+│   ├── config.js           # variables d'environnement (PORT, CORS, BACKEND_STORAGE, RAPPORTS_DIR, LIENS_FICHIER)
+│   ├── liens.js            # jetons des liens envoyés par mail : jeton -> PDF de prive/
+│   ├── storage.js          # dossier storage/outputs (cache des analyses)
+│   ├── text.js             # normaliser() : comparaison de titres/mots-clés sans accents
+│   ├── pdfReader.js        # lecture bas niveau du PDF (pdfjs-dist) : texte, lignes stylées,
+│   │                       #   tracés vectoriels (radars), rectangles pleins (histogrammes)
+│   ├── report/
+│   │   ├── sections.js     # structure connue du rapport : sections, mots-clés, pages
+│   │   ├── scores.js       # lecture des scores sur les tracés (radar, histogramme) + géométrie
+│   │   ├── metiers.js      # champ des possibles : zones et métiers (lignes en gras)
+│   │   └── analyzer.js     # analyserRapport() : orchestration -> JSON d'analyse
+│   └── routes/
+│       └── report.js       # GET /report/{jeton}, GET /report/{jeton}/scores
+│                           # (chat.js et synthesis.js viendront ici : /chat, /synthesis)
 │
-├── routes/                 # Routes de l'API
-│   ├── __init__.py
-│   ├── report.py           # Importation et analyse des PDF // JF
-│   ├── chat.py             # Questions à l'IA // JULIEN
-│   └── synthesis.py        # Génération des synthèses
+├── scripts/
+│   └── creerLien.js        # npm run lien -- <fichier.pdf> : jeton ajouté à prive/liens.json
 │
-├── services/               # Logique métier
-│   ├── __init__.py
-│   ├── pdf_service.py      # Extraction du texte des PDF // JF
-│   ├── ai_service.py       # Communication avec le modèle IA // JULIEN
-│   ├── report_service.py   # Extraction des scores et compétences // JF
-│   └── audio_service.py    # Génération audio // JULIEN
-│
-├── models/
-│   ├── __init__.py
-│   └── schemas.py          # Structures JSON avec Pydantic
+├── tests/
+│   ├── report.test.js                     # routes /report et jetons, sur les PDF de prive/
+│   └── rapports-reels.test.js             # invariants sur les vrais PDF de prive/ (local seulement,
+│                                          #   sauté si prive/ est vide ; aucune valeur réelle écrite)
 │
 └── storage/
-    ├── uploads/            # PDF temporaires
-    └── outputs/            # Synthèses générées
+    ├── uploads/            # plus utilisé (l'upload a été retiré), gardé pour les garde-fous
+    └── outputs/            # analyses JSON en cache, une par jeton (ignoré par git)
+
+Routes actuelles :
+    GET  /report/{jeton}        : analyse complète (JSON avec sources), calculée à la
+                                  première consultation puis relue depuis storage/outputs/
+    GET  /report/{jeton}/scores : les 3 graphiques (RIASEC, aptitudes, HEXACO) avec leurs sources
+    Jeton mal formé ou inconnu : 404 « Rapport introuvable », toujours la même réponse.
+    Réponses en Cache-Control: no-store et Referrer-Policy: no-referrer (données personnelles).
+
+À venir (mêmes dossiers) :
+    src/routes/chat.js       # questions à l'IA sur une analyse // JULIEN
+    src/routes/synthesis.js  # génération de synthèses // JULIEN
+    src/ai/                  # client modèle d'IA (Ollama local ou API)
+    src/audio/               # génération audio
