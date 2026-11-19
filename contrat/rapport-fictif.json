@@ -1,0 +1,440 @@
+{
+  "rapport": {
+    "id": "00000000000000000000000000000000",
+    "fichier": "rapport-fictif.pdf",
+    "nb_pages": 17,
+    "rdv": "Rdv FICTIF",
+    "sections_detectees": [
+      "Intérêts professionnels",
+      "Aptitudes cognitives",
+      "Personnalité",
+      "Champ des possibles",
+      "Avertissement"
+    ],
+    "interets_riasec": [
+      {
+        "label": "Réaliste",
+        "value": 75.0,
+        "echelle_max": 100.0,
+        "point_fort": true,
+        "source": {
+          "page": 4,
+          "section": "Intérêts professionnels",
+          "type": "trace_vectoriel",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "label": "Investigateur",
+        "value": 50.0,
+        "echelle_max": 100.0,
+        "point_fort": false,
+        "source": {
+          "page": 4,
+          "section": "Intérêts professionnels",
+          "type": "trace_vectoriel",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "label": "Artistique",
+        "value": 41.7,
+        "echelle_max": 100.0,
+        "point_fort": false,
+        "source": {
+          "page": 4,
+          "section": "Intérêts professionnels",
+          "type": "trace_vectoriel",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "label": "Social",
+        "value": 66.7,
+        "echelle_max": 100.0,
+        "point_fort": true,
+        "source": {
+          "page": 4,
+          "section": "Intérêts professionnels",
+          "type": "trace_vectoriel",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "label": "Entreprenant",
+        "value": 33.3,
+        "echelle_max": 100.0,
+        "point_fort": false,
+        "source": {
+          "page": 4,
+          "section": "Intérêts professionnels",
+          "type": "trace_vectoriel",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "label": "Conventionnel",
+        "value": 25.0,
+        "echelle_max": 100.0,
+        "point_fort": false,
+        "source": {
+          "page": 4,
+          "section": "Intérêts professionnels",
+          "type": "trace_vectoriel",
+          "detail": "donnée inventée"
+        }
+      }
+    ],
+    "aptitudes": [
+      {
+        "label": "Originalité",
+        "value": 4.0,
+        "echelle_max": 7.0,
+        "source": {
+          "page": 5,
+          "section": "Aptitudes cognitives",
+          "type": "trace_vectoriel",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "label": "Raisonnement déductif",
+        "value": 5.0,
+        "echelle_max": 7.0,
+        "source": {
+          "page": 5,
+          "section": "Aptitudes cognitives",
+          "type": "trace_vectoriel",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "label": "Raisonnement inductif",
+        "value": 3.0,
+        "echelle_max": 7.0,
+        "source": {
+          "page": 5,
+          "section": "Aptitudes cognitives",
+          "type": "trace_vectoriel",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "label": "Flexibilité des catégories",
+        "value": 4.0,
+        "echelle_max": 7.0,
+        "source": {
+          "page": 5,
+          "section": "Aptitudes cognitives",
+          "type": "trace_vectoriel",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "label": "Facilité avec les nombres",
+        "value": 2.0,
+        "echelle_max": 7.0,
+        "source": {
+          "page": 5,
+          "section": "Aptitudes cognitives",
+          "type": "trace_vectoriel",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "label": "Mémorisation",
+        "value": 5.0,
+        "echelle_max": 7.0,
+        "source": {
+          "page": 5,
+          "section": "Aptitudes cognitives",
+          "type": "trace_vectoriel",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "label": "Visualisation",
+        "value": 6.0,
+        "echelle_max": 7.0,
+        "source": {
+          "page": 5,
+          "section": "Aptitudes cognitives",
+          "type": "trace_vectoriel",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "label": "Attention sélective",
+        "value": 3.0,
+        "echelle_max": 7.0,
+        "source": {
+          "page": 5,
+          "section": "Aptitudes cognitives",
+          "type": "trace_vectoriel",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "label": "Partage du temps",
+        "value": 4.0,
+        "echelle_max": 7.0,
+        "source": {
+          "page": 5,
+          "section": "Aptitudes cognitives",
+          "type": "trace_vectoriel",
+          "detail": "donnée inventée"
+        }
+      }
+    ],
+    "personnalite_hexaco": [
+      {
+        "label": "Émotivité",
+        "value": 42.5,
+        "echelle_max": 100.0,
+        "point_fort": false,
+        "source": {
+          "page": 6,
+          "section": "Personnalité",
+          "type": "trace_vectoriel",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "label": "Extraversion",
+        "value": 63.8,
+        "echelle_max": 100.0,
+        "point_fort": true,
+        "source": {
+          "page": 6,
+          "section": "Personnalité",
+          "type": "trace_vectoriel",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "label": "Agréabilité",
+        "value": 52.5,
+        "echelle_max": 100.0,
+        "point_fort": false,
+        "source": {
+          "page": 6,
+          "section": "Personnalité",
+          "type": "trace_vectoriel",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "label": "Caractère consciencieux",
+        "value": 48.8,
+        "echelle_max": 100.0,
+        "point_fort": false,
+        "source": {
+          "page": 6,
+          "section": "Personnalité",
+          "type": "trace_vectoriel",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "label": "Humilité-honnêteté",
+        "value": 50.0,
+        "echelle_max": 100.0,
+        "point_fort": false,
+        "source": {
+          "page": 6,
+          "section": "Personnalité",
+          "type": "trace_vectoriel",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "label": "Ouverture à l'expérience",
+        "value": 70.0,
+        "echelle_max": 100.0,
+        "point_fort": true,
+        "source": {
+          "page": 6,
+          "section": "Personnalité",
+          "type": "trace_vectoriel",
+          "detail": "donnée inventée"
+        }
+      }
+    ],
+    "metiers": [
+      {
+        "id": "z1-m1",
+        "nom": "Métier fictif A",
+        "zone": 1,
+        "zone_label": "Métiers accessibles en 0 à 6 mois",
+        "description": "Description inventée pour les tests. Deux ou trois phrases, comme dans un rapport.",
+        "source": {
+          "page": 8,
+          "section": "Champ des possibles",
+          "type": "texte",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "id": "z1-m2",
+        "nom": "Métier fictif B",
+        "zone": 1,
+        "zone_label": "Métiers accessibles en 0 à 6 mois",
+        "description": "Description inventée pour les tests. Deux ou trois phrases, comme dans un rapport.",
+        "source": {
+          "page": 8,
+          "section": "Champ des possibles",
+          "type": "texte",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "id": "z2-m1",
+        "nom": "Métier fictif C",
+        "zone": 2,
+        "zone_label": "Métiers accessibles en 3 mois à 2 ans",
+        "description": "Description inventée pour les tests. Deux ou trois phrases, comme dans un rapport.",
+        "source": {
+          "page": 10,
+          "section": "Champ des possibles",
+          "type": "texte",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "id": "z2-m2",
+        "nom": "Métier fictif D",
+        "zone": 2,
+        "zone_label": "Métiers accessibles en 3 mois à 2 ans",
+        "description": "Description inventée pour les tests. Deux ou trois phrases, comme dans un rapport.",
+        "source": {
+          "page": 10,
+          "section": "Champ des possibles",
+          "type": "texte",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "id": "z2-m3",
+        "nom": "Métier fictif E",
+        "zone": 2,
+        "zone_label": "Métiers accessibles en 3 mois à 2 ans",
+        "description": "Description inventée pour les tests. Deux ou trois phrases, comme dans un rapport.",
+        "source": {
+          "page": 10,
+          "section": "Champ des possibles",
+          "type": "texte",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "id": "z3-m1",
+        "nom": "Métier fictif F",
+        "zone": 3,
+        "zone_label": "Métiers accessibles en 1 à 4 ans",
+        "description": "Description inventée pour les tests. Deux ou trois phrases, comme dans un rapport.",
+        "source": {
+          "page": 12,
+          "section": "Champ des possibles",
+          "type": "texte",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "id": "z3-m2",
+        "nom": "Métier fictif G",
+        "zone": 3,
+        "zone_label": "Métiers accessibles en 1 à 4 ans",
+        "description": "Description inventée pour les tests. Deux ou trois phrases, comme dans un rapport.",
+        "source": {
+          "page": 12,
+          "section": "Champ des possibles",
+          "type": "texte",
+          "detail": "donnée inventée"
+        }
+      },
+      {
+        "id": "z4-m1",
+        "nom": "Métier fictif H",
+        "zone": 4,
+        "zone_label": "Métiers accessibles en 2 à 6 ans",
+        "description": "Description inventée pour les tests. Deux ou trois phrases, comme dans un rapport.",
+        "source": {
+          "page": 14,
+          "section": "Champ des possibles",
+          "type": "texte",
+          "detail": "donnée inventée"
+        }
+      }
+    ],
+    "avertissement": "Texte d'avertissement inventé pour les tests.",
+    "notes": []
+  },
+  "resume": {
+    "points": [
+      {
+        "texte": "Tu aimes les activités concrètes et le contact avec les autres.",
+        "page": 4
+      },
+      {
+        "texte": "Tu es à l'aise pour te représenter les choses dans l'espace.",
+        "page": 5
+      },
+      {
+        "texte": "Tu es ouvert aux idées nouvelles et tu vas facilement vers les gens.",
+        "page": 6
+      },
+      {
+        "texte": "Tu as retenu trois métiers préférés, dans trois zones différentes.",
+        "page": 8
+      }
+    ],
+    "texte": "Texte du résumé inventé pour les tests, environ 150 mots dans la vraie version."
+  },
+  "onboarding": {
+    "termine": true,
+    "interets_metiers": {
+      "z1-m1": "interesse",
+      "z1-m2": "plus_tard",
+      "z2-m1": "non",
+      "z2-m2": "interesse",
+      "z2-m3": "interesse",
+      "z3-m1": "interesse",
+      "z3-m2": "non",
+      "z4-m1": "plus_tard"
+    },
+    "favoris": {
+      "1": "z1-m1",
+      "2": "z2-m3",
+      "3": "z3-m1",
+      "4": null,
+      "5": null
+    },
+    "ajouts_psy": [
+      {
+        "id": "psy-1",
+        "nom": "Métier fictif ajouté avec le psychologue"
+      }
+    ]
+  },
+  "todo": [
+    {
+      "id": "todo-1",
+      "texte": "Lis la fiche du métier fictif E",
+      "lien": "#/metier/z2-m3",
+      "fait": false
+    },
+    {
+      "id": "todo-2",
+      "texte": "Lis la fiche du métier fictif A",
+      "lien": "#/metier/z1-m1",
+      "fait": true
+    },
+    {
+      "id": "todo-3",
+      "texte": "Regarde les formations près de chez toi",
+      "lien": "https://www.orientation-regionsud.fr/",
+      "fait": false
+    }
+  ],
+  "rapport_pdf_url": "rapport-fictif.pdf"
+}
