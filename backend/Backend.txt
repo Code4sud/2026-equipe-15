@@ -1,0 +1,86 @@
+Backend — Node.js + Express (depuis le 19/11, la stack Python/FastAPI est abandonnée).
+
+Rôle : lire un Rapport des Possibles (PDF) déjà rangé dans notre base, en
+extraire les scores des graphiques et les métiers sous forme de JSON avec
+leurs sources, et plus tard dialoguer avec une IA et générer des
+restitutions personnalisées (texte, audio, fiches interactives).
+
+Lancer :
+    cd backend
+    npm install
+    npm start          # API sur http://localhost:8000
+    npm test           # tests sur les rapports de prive/ (sautés si prive/ est vide)
+    npm run lien -- rapport.pdf   # crée le jeton du lien à envoyer par mail
+    npm run resume -- rapport.pdf # essai du résumé écrit dans le terminal (modèle du .env)
+
+IA : Ollama en local. Le modèle se règle dans backend/.env (OLLAMA_MODEL,
+voir .env.example) ; sans modèle, le résumé est construit sans IA à partir
+des mêmes faits (repli). Les tests n'appellent jamais Ollama.
+
+Accès : pas d'authentification. Le jeune ouvre sa page depuis un lien reçu
+par mail, qui porte un jeton aléatoire (32 caractères hexadécimaux). Pour
+l'instant, la « base » est le dossier prive/ (ignoré par git) : les PDF, et
+prive/liens.json, la table jeton -> fichier écrite par `npm run lien`.
+Le jeton est la seule clé : ne jamais le dériver du numéro de rapport, ne
+jamais ajouter de route qui liste les rapports ou les jetons.
+
+backend/
+├── package.json            # dépendances (express, cors, dotenv, pdfjs-dist)
+├── package-lock.json
+├── server.js               # point d'entrée Express (CORS, routes)
+├── .env.example            # noms des variables d'env, sans valeur (.env ignoré)
+├── Backend.txt             # ce fichier
+│
+├── src/
+│   ├── config.js           # variables d'environnement (PORT, CORS, BACKEND_STORAGE, RAPPORTS_DIR, LIENS_FICHIER)
+│   ├── liens.js            # jetons des liens envoyés par mail : jeton -> PDF de prive/
+│   ├── storage.js          # dossier storage/outputs (cache des analyses)
+│   ├── text.js             # normaliser() : comparaison de titres/mots-clés sans accents
+│   ├── pdfReader.js        # lecture bas niveau du PDF (pdfjs-dist) : texte, lignes stylées,
+│   │                       #   tracés vectoriels (radars), rectangles pleins (histogrammes)
+│   ├── ai/
+│   │   └── ollama.js       # client Ollama (OLLAMA_URL, OLLAMA_MODEL, OLLAMA_THINK…), réponse en JSON
+│   ├── resume/
+│   │   ├── faits.js        # les faits du résumé, chacun avec sa page (seule matière donnée au modèle)
+│   │   ├── controle.js     # refus des phrases sans fait, avec un nombre inventé ou un mot interdit
+│   │   └── generer.js      # résumé : modèle + contrôle + repli sans IA
+│   ├── report/
+│   │   ├── sections.js     # structure connue du rapport : sections, mots-clés, pages
+│   │   ├── scores.js       # lecture des scores sur les tracés (radar, histogramme) + géométrie
+│   │   ├── metiers.js      # champ des possibles : zones et métiers (lignes en gras)
+│   │   └── analyzer.js     # analyserRapport() : orchestration -> JSON d'analyse
+│   └── routes/
+│       └── report.js       # GET /report/{jeton}, GET /report/{jeton}/scores
+│                           # (chat.js et synthesis.js viendront ici : /chat, /synthesis)
+│
+├── scripts/
+│   ├── creerLien.js        # npm run lien -- <fichier.pdf> : jeton ajouté à prive/liens.json
+│   └── essaiResume.js      # npm run resume -- <fichier.pdf> : résumé affiché dans le terminal
+│
+├── tests/
+│   ├── resume.test.js                     # faits, contrôle, résumé (modèle factice, analyse inventée)
+│   ├── report.test.js                     # routes /report et jetons, sur les PDF de prive/
+│   └── rapports-reels.test.js             # invariants sur les vrais PDF de prive/ (local seulement,
+│                                          #   sauté si prive/ est vide ; aucune valeur réelle écrite)
+│
+└── storage/
+    ├── uploads/            # plus utilisé (l'upload a été retiré), gardé pour les garde-fous
+    └── outputs/            # analyses JSON en cache, une par jeton (ignoré par git)
+
+Routes actuelles :
+    GET  /report/{jeton}        : analyse complète (JSON avec sources), calculée à la
+                                  première consultation puis relue depuis storage/outputs/
+    GET  /report/{jeton}/scores : les 3 graphiques (RIASEC, aptitudes, HEXACO) avec leurs sources
+    POST /report/{jeton}/resume : résumé écrit, corps facultatif { onboarding } (forme du contrat).
+                                  Renvoie points [{ texte, page, fait, origine }], texte, phrases,
+                                  faits [{ id, page, texte }], genere_par { mode, modele, raison },
+                                  controle { phrases_refusees, raisons }, choix_pris_en_compte.
+                                  Mis en cache par jeton, choix et modèle (sauf en repli complet).
+    Jeton mal formé ou inconnu : 404 « Rapport introuvable », toujours la même réponse.
+    Réponses en Cache-Control: no-store et Referrer-Policy: no-referrer (données personnelles).
+
+À venir (mêmes dossiers) :
+    src/routes/chat.js       # questions à l'IA sur une analyse // JULIEN
+    src/routes/synthesis.js  # génération de synthèses // JULIEN
+    src/ai/                  # client modèle d'IA (Ollama local ou API)
+    src/audio/               # génération audio
