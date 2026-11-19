@@ -168,21 +168,30 @@ C'est la première restitution décidée le 19/11, et c'est là que le jury cher
       (`SECTIONS.aptitudes.gabarits`). Le gabarit est reconnu aux libellés lus sous les barres, et confirmé par les
       encadrés de la page. Si les libellés ne correspondent à aucun gabarit, les valeurs ne sont pas données et une
       note le signale (ce cas n'arrive sur aucun des 18 rapports, il n'est donc pas testé).
-- [ ] **À dire au front** : les noms des 9 aptitudes ne sont pas fixes. Les afficher tels que l'API les renvoie,
-      sans liste en dur.
-- [ ] **AGENTS.md, section 4** : elle ne cite que le premier jeu de 9 aptitudes. À compléter, c'est le fichier de toute
-      l'équipe.
-- [ ] **Premiers pas (bloc `todo`)** : `docs/frontend-etapes.md` les déduit des choix de l'onboarding, sans IA. Ils
-      peuvent donc rester dans le front. À caler, car `contrat/README.md` dit que c'est le backend qui les écrit.
-- [ ] **Pages métier** (salaire, durée des études, formations) : rien de tout ça n'est dans le rapport ni dans la
-      table O\*NET. Le lien vers ROME ou l'ONISEP est à construire. Pour la démo, se limiter à des liens vers
-      orientation-regionsud.fr, sans en extraire le contenu.
-- [ ] **Mails** : l'envoi du lien après le passage au Centre, et la suppression des données au bout d'un an
-      (maquettes prévues côté front). Hors démo.
-- [ ] **Une vraie base** à la place de `prive/` et de `liens.json`. Prévoir aussi :
-  - une date d'expiration des liens ;
-  - la révocation d'un jeton ;
-  - la suppression de l'analyse en cache avec le rapport.
+- [x] **À dire au front** : les noms des 9 aptitudes ne sont pas fixes. Fait : `src/pages/Profil.jsx` affiche les noms
+      renvoyés par l'API, sans liste en dur.
+- [x] **AGENTS.md, section 4** : les deux jeux de 9 aptitudes y sont cités, avec la consigne d'afficher les noms de
+      l'API.
+- [x] **Premiers pas (bloc `todo`)** : tranché, ils restent dans le front. `contrat/README.md` dit maintenant que le
+      site les calcule (`src/components/PremiersPas.jsx`).
+- [x] **Pages métier, liens de recherche** : chaque métier de `GET /report/{jeton}` a `liens` (ONISEP et France
+      Travail cherchent l'intitulé, celui de la table O\*NET s'il est retrouvé ; Région Sud : sa page « Rechercher un
+      métier », car sa recherche n'a pas d'adresse directe). Adresses vérifiées à la main le 19/11. Rien n'est extrait
+      de ces sites.
+  - [ ] **À dire au front** : afficher `metier.liens` sur la page métier, à la place du lien générique ; les
+        données inventées de `src/data/infos-metiers.js` restent une maquette.
+  - [ ] Après la démo : le lien vers ROME par le code O\*NET (jeu ROME 4.0 de data.gouv.fr) : vérifier d'abord
+        qu'une table de correspondance O\*NET -> ROME existe, sinon le rapprochement par intitulé est moins fiable.
+- [x] **Mails** : `npm run envoyer -- <fichier.pdf> <adresse>` écrit le mail du lien dans un fichier `.eml`
+      (`prive/mails/`, ignoré par git), sans l'envoyer. `npm run purger` supprime les données au bout d'un an
+      (simulation par défaut, `-- --confirmer` pour supprimer).
+  - [ ] Plus tard : un vrai envoi (SMTP), et la purge lancée chaque nuit (cron).
+- [x] **Une vraie base** : SQLite (`node:sqlite`, Node 22.13 ou plus récent), `prive/possibles.db`. `prive/` et
+      `liens.json` sont gardés : `liens.json` n'est jamais modifié, ses jetons sont repris dans la base.
+  - [x] une date d'expiration des liens (1 an, `LIEN_DUREE_JOURS`) ;
+  - [x] la révocation d'un jeton (`npm run revoquer -- <jeton>`) ;
+  - [x] la suppression de l'analyse en cache avec le rapport (révocation et purge).
+  - [ ] **À dire à l'équipe** : Node 22.13 ou plus récent est maintenant nécessaire (`node --version`).
 
 ## Ménage dans le dépôt (avec l'accord de l'équipe)
 

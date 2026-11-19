@@ -29,7 +29,8 @@ import { genererResume } from '../resume/generer.js';
 import { nettoyerOnboarding } from '../resume/faits.js';
 import { configOllama } from '../ai/ollama.js';
 import { audioDisponible, empreinteAudio, EMPREINTE_VALIDE, fichierAudio, ErreurAudio } from '../audio/synthese.js';
-import { tableOnet, controlerMetiers, chercherMetiers, cleIntitule } from '../onet/table.js';
+import { tableOnet, controlerMetiers, chercherMetiers, cleIntitule, trouverMetiers } from '../onet/table.js';
+import { liensMetier } from '../report/liensMetiers.js';
 
 // Table O*NET, ou null si elle est absente ou illisible (l'analyse reste
 // servie sans le contrôle).
@@ -84,9 +85,18 @@ async function repondre(req, res, extraire) {
 // `rapport_pdf_url` (contrat) : adresse du PDF, relative à la racine de l'API.
 // Chaque métier est contrôlé contre la table O*NET (`onet` sur le métier,
 // bilan dans `controle_onet`) ; un métier introuvable ajoute une note.
+// Chaque métier reçoit aussi `liens` : où chercher salaires, études et offres
+// (ONISEP, Région Sud, France Travail), avec l'intitulé exact de la table
+// O*NET quand il est retrouvé (l'extraction du PDF perd parfois un « l »).
 router.get('/:jeton', (req, res) =>
   repondre(req, res, (analyse) => {
-    const { metiers, controle } = controlerMetiers(analyse.metiers, tableOuNull());
+    const table = tableOuNull();
+    const controles = controlerMetiers(analyse.metiers, table);
+    const controle = controles.controle;
+    const metiers = controles.metiers.map((m) => {
+      const officiels = table ? trouverMetiers(table, m.nom) : [];
+      return { ...m, liens: liensMetier(officiels.length === 1 ? officiels[0].job_fr : m.nom) };
+    });
     const notes = controle.introuvables.map((nom) => `Champ des possibles — métier introuvable dans la table O*NET : « ${nom} »`);
     return {
       ...analyse,

@@ -64,7 +64,7 @@ Documentation de l'organisation : https://orientation.code4sud.fr/doc/ et https:
 | Partie | Contenu | Extraction |
 | --- | --- | --- |
 | Intérêts professionnels | 6 profils RIASEC : Réaliste, Investigateur, Artistique, Social, Entreprenant, Conventionnel | Graphique radar, **sans valeur chiffrée** |
-| Aptitudes cognitives | 9 aptitudes notées de 0 à 7 : originalité, raisonnement déductif, raisonnement inductif, flexibilité des catégories, facilité avec les nombres, mémorisation, visualisation, attention sélective, partage du temps | Histogramme, **valeurs absentes du texte** |
+| Aptitudes cognitives | 9 aptitudes notées de 0 à 7. Deux gabarits de rapport existent, avec deux jeux de 9 : (1) originalité, raisonnement déductif, raisonnement inductif, flexibilité des catégories, facilité avec les nombres, mémorisation, visualisation, attention sélective, partage du temps ; (2) compréhension orale, compréhension écrite, expression orale, expression écrite, fluidité des idées, originalité, sensibilité aux problèmes, raisonnement déductif, raisonnement inductif. Affichez les noms renvoyés par l'API, sans liste en dur. | Histogramme, **valeurs absentes du texte** |
 | Personnalité | 6 dimensions HEXACO : émotivité, extraversion, agréabilité, caractère consciencieux, humilité-honnêteté, ouverture à l'expérience | Graphique radar, **sans valeur chiffrée** |
 | Champ des possibles | 5 zones de métiers, jusqu'à 5 métiers par zone, chacun avec un paragraphe de description. Une zone peut être vide. | Texte, extraction directe |
 | Avertissement final | Résultats expérimentaux, pistes de réflexion, erreurs possibles | Texte |

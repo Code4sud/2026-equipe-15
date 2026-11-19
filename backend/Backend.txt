@@ -10,7 +10,11 @@ Lancer :
     npm install
     npm start          # API sur http://localhost:8000
     npm test           # tests sur les rapports de prive/ (sautés si prive/ est vide)
-    npm run lien -- rapport.pdf   # crée le jeton du lien à envoyer par mail
+    npm run lien -- rapport.pdf   # crée le jeton du lien à envoyer par mail (valable 1 an)
+    npm run envoyer -- rapport.pdf adresse@mail  # prépare le mail du lien (.eml dans prive/mails/)
+    npm run revoquer -- <jeton>   # coupe un lien (404) et supprime ses analyses en cache
+    npm run purger                # liens expirés : simulation ; « -- --confirmer » supprime
+    npm run migrer                # reprend prive/liens.json dans la base (sans le modifier)
     npm run resume -- rapport.pdf # essai du résumé écrit dans le terminal (modèle du .env)
 
 IA : Ollama en local. Le modèle se règle dans backend/.env (OLLAMA_MODEL,
@@ -29,9 +33,17 @@ du dépôt :
     - puis PIPER_BIN=~/piper/piper et PIPER_MODELE=<chemin de la voix>.onnx.
 
 Accès : pas d'authentification. Le jeune ouvre sa page depuis un lien reçu
-par mail, qui porte un jeton aléatoire (32 caractères hexadécimaux). Pour
-l'instant, la « base » est le dossier prive/ (ignoré par git) : les PDF, et
-prive/liens.json, la table jeton -> fichier écrite par `npm run lien`.
+par mail, qui porte un jeton aléatoire (32 caractères hexadécimaux). Les PDF
+sont dans prive/ (ignoré par git), et les liens dans la base SQLite
+prive/possibles.db (module node:sqlite : Node 22.13 ou plus récent), avec :
+    - une date d'expiration, 1 an après la création (LIEN_DUREE_JOURS) ;
+    - la révocation d'un jeton (npm run revoquer), qui supprime aussi son cache ;
+    - la suppression des données des liens expirés (npm run purger -- --confirmer) :
+      cache, puis PDF s'il n'a plus de lien actif ; le jeton reste marqué supprimé.
+Un lien expiré, révoqué ou supprimé reçoit le même 404 qu'un jeton inconnu.
+L'ancienne table prive/liens.json n'est jamais modifiée : un jeton qui n'y est
+pas encore repris dans la base l'est à sa première utilisation (ou par
+npm run migrer), valable 1 an à partir de là.
 Le jeton est la seule clé : ne jamais le dériver du numéro de rapport, ne
 jamais ajouter de route qui liste les rapports ou les jetons.
 
@@ -43,8 +55,12 @@ backend/
 ├── Backend.txt             # ce fichier
 │
 ├── src/
-│   ├── config.js           # variables d'environnement (PORT, CORS, BACKEND_STORAGE, RAPPORTS_DIR, LIENS_FICHIER)
-│   ├── liens.js            # jetons des liens envoyés par mail : jeton -> PDF de prive/
+│   ├── config.js           # variables d'environnement (PORT, CORS, BACKEND_STORAGE, RAPPORTS_DIR,
+│   │                       #   LIENS_FICHIER, BASE_FICHIER, LIEN_DUREE_JOURS, SITE_URL, MAILS_DIR…)
+│   ├── base.js             # base SQLite des liens (node:sqlite), table liens
+│   ├── liens.js            # jetons des liens envoyés par mail : création, expiration,
+│   │                       #   révocation, purge, reprise de liens.json
+│   ├── mail.js             # mail du lien au format .eml (pas d'envoi)
 │   ├── storage.js          # dossier storage/outputs (cache des analyses)
 │   ├── text.js             # normaliser() : comparaison de titres/mots-clés sans accents
 │   ├── pdfReader.js        # lecture bas niveau du PDF (pdfjs-dist) : texte, lignes stylées,
@@ -68,13 +84,18 @@ backend/
 │   │   ├── sections.js     # structure connue du rapport : sections, mots-clés, pages
 │   │   ├── scores.js       # lecture des scores sur les tracés (radar, histogramme) + géométrie
 │   │   ├── metiers.js      # champ des possibles : zones et métiers (lignes en gras)
+│   │   ├── liensMetiers.js # liens de recherche d'un métier (ONISEP, Région Sud, France Travail)
 │   │   └── analyzer.js     # analyserRapport() : orchestration -> JSON d'analyse
 │   └── routes/
 │       ├── report.js       # GET /report/{jeton}, GET /report/{jeton}/scores…
 │       └── chat.js         # POST /chat/{jeton} : l'assistant // JULIEN
 │
 ├── scripts/
-│   ├── creerLien.js        # npm run lien -- <fichier.pdf> : jeton ajouté à prive/liens.json
+│   ├── creerLien.js        # npm run lien -- <fichier.pdf> : jeton rangé dans la base
+│   ├── envoyerLien.js      # npm run envoyer -- <fichier.pdf> <adresse> : mail .eml dans prive/mails/
+│   ├── revoquer.js         # npm run revoquer -- <jeton>
+│   ├── purger.js           # npm run purger [-- --confirmer] : données des liens expirés
+│   ├── migrer.js           # npm run migrer : liens.json -> base, sans le modifier
 │   └── essaiResume.js      # npm run resume -- <fichier.pdf> : résumé affiché dans le terminal
 │
 ├── tests/
@@ -83,6 +104,9 @@ backend/
 │   ├── onet.test.js                       # lecture .xlsx, contrôle, recherche (classeur inventé)
 │   ├── outils/fauxPiper.js                # faux Piper : même interface, WAV de silence
 │   ├── report.test.js                     # routes /report et jetons, sur les PDF de prive/
+│   ├── chat.test.js                       # assistant /chat (modèle factice, analyse inventée)
+│   ├── liens.test.js                      # base des liens : expiration, révocation, purge, reprise
+│   ├── mail.test.js                       # mail .eml et liens de recherche des métiers
 │   └── rapports-reels.test.js             # invariants sur les vrais PDF de prive/ (local seulement,
 │                                          #   sauté si prive/ est vide ; aucune valeur réelle écrite)
 │
@@ -97,6 +121,9 @@ Routes actuelles :
                                   Chaque métier a « onet » ({ code, job_en }, { code: null, codes }
                                   si l'intitulé est ambigu, null s'il est introuvable) ; bilan dans
                                   controle_onet { table, retrouves, introuvables }.
+                                  Chaque métier a aussi « liens » [{ site, titre, url }] : recherche
+                                  ONISEP et France Travail sur l'intitulé (celui de la table O*NET
+                                  s'il est retrouvé), page « Rechercher un métier » de la Région Sud.
     GET  /report/{jeton}/metiers?q=…&limite=… : métiers de la table O*NET dont l'intitulé (ou un
                                   mot) commence par q, 2 lettres au moins, 10 par défaut, 20 au plus.
                                   [{ nom, code, dans_rapport (id du métier dans le rapport ou null) }].
@@ -122,7 +149,8 @@ Routes actuelles :
                                   la réponse n'est pas dans le rapport, null en repli),
                                   genere_par { mode, modele, raison }, controle. 400 si la
                                   question est vide ou trop longue. Pas de cache.
-    Jeton mal formé ou inconnu : 404 « Rapport introuvable », toujours la même réponse.
+    Jeton mal formé, inconnu, expiré, révoqué ou supprimé : 404 « Rapport introuvable »,
+    toujours la même réponse.
     Réponses en Cache-Control: no-store et Referrer-Policy: no-referrer (données personnelles).
 
 À venir (mêmes dossiers) :

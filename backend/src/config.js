@@ -20,9 +20,29 @@ export const config = {
   get rapportsDir() {
     return process.env.RAPPORTS_DIR || path.join(__dirname, '..', '..', 'prive');
   },
-  // Table jeton -> fichier PDF (un jeton par lien envoyé par mail).
+  // Ancienne table jeton -> fichier PDF, lue sans être modifiée (voir liens.js).
   get liensFichier() {
     return process.env.LIENS_FICHIER || path.join(this.rapportsDir, 'liens.json');
+  },
+  // Base SQLite des liens, à côté de liens.json (par défaut prive/possibles.db).
+  get baseFichier() {
+    return process.env.BASE_FICHIER || path.join(path.dirname(this.liensFichier), 'possibles.db');
+  },
+  // Durée de validité d'un lien, en jours (1 an par défaut).
+  get lienDureeJours() {
+    const n = Number(process.env.LIEN_DUREE_JOURS || 365);
+    return Number.isFinite(n) && n > 0 ? n : 365;
+  },
+  // Adresse du site, pour le lien du mail : <SITE_URL>#/?r=<jeton>.
+  get siteUrl() {
+    return (process.env.SITE_URL || 'http://localhost:5173/').replace(/\/*$/, '/');
+  },
+  // Mails préparés (.eml) : dossier et expéditeur.
+  get mailsDir() {
+    return process.env.MAILS_DIR || path.join(this.rapportsDir, 'mails');
+  },
+  get mailExpediteur() {
+    return process.env.MAIL_EXPEDITEUR || 'Possibles.AI <ne-pas-repondre@possibles.invalid>';
   },
   // Table des métiers O*NET en français (tableur du Centre, dans prive/).
   get onetFichier() {

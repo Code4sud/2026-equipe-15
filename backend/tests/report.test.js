@@ -60,6 +60,8 @@ test('GET /report/{jeton} : analyse du rapport, puis relue depuis le cache', { s
     assert.equal(analyse.id, jeton);
     assert.ok(analyse.rdv);
     assert.ok(analyse.metiers.length > 0);
+    // Chaque métier a ses liens de recherche (ONISEP, Région Sud, France Travail)
+    for (const m of analyse.metiers) assert.deepEqual(m.liens.map((l) => l.site), ['onisep', 'orientation-regionsud', 'france-travail']);
 
     // L'analyse est mise en cache, et la seconde lecture est identique
     assert.ok(fs.existsSync(path.join(TMP, 'outputs', `${jeton}.json`)));
