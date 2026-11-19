@@ -1,13 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { rapport, metiers, zones, autresMetiers } from '../data/rapport.js';
-import { avisLabels, candidats, choisirAvis, entrerZone } from '../lib/onboarding.js';
+import { apresAvis, apresPrefere, avisLabels, candidats, choisirAvis, entrerMetiers, entrerZone, retour } from '../lib/onboarding.js';
 import { useOnboarding, useOnboardingStatus } from '../lib/onboarding-context.jsx';
+import EnTete from '../components/EnTete.jsx';
 import '../styles.css';
 
 const zonesRemplies = zones.filter((z) => z.metiers.length);
-const etapes = ['Bienvenue', 'Tes envies', 'Tes préférés', 'D’autres idées', 'Récapitulatif'];
-const ecrans = ['bienvenue', 'metiers', 'favoris', 'ajouts', 'recap'];
+// Les métiers et le préféré se font zone par zone : ils partagent la même étape.
+const etapes = ['Bienvenue', 'Tes métiers', 'D’autres idées', 'Récapitulatif'];
+const etapeDe = { bienvenue: 0, metiers: 1, favoris: 1, ajouts: 2, recap: 3 };
 
 function Icon({ name, className = '', ...props }) {
   const paths = {
@@ -19,23 +21,8 @@ function Icon({ name, className = '', ...props }) {
     back: <path d="m14 6-6 6 6 6" />,
     search: <><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" /></>,
     star: <path d="m12 3 2.8 5.8 6.4.9-4.6 4.5 1.1 6.3-5.7-3-5.7 3 1.1-6.3-4.6-4.5 6.4-.9L12 3Z" />,
-    spark: <><path d="m12 2 2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5L12 2Z" /></>,
   };
   return <svg {...props} className={`icon ${className}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name] || paths.book}</svg>;
-}
-
-function Illustration() {
-  return <div className="report-art" aria-hidden="true">
-    <div className="orbit orbit-one" /><div className="orbit orbit-two" />
-    <div className="paper paper-back" />
-    <div className="paper paper-front">
-      <div className="paper-heading"><span /><Icon name="spark" /></div>
-      <i /><i /><i />
-      <div className="paper-chart"><span /><span /><span /><span /></div>
-    </div>
-    <div className="art-heart"><Icon name="heart" /></div>
-    <div className="art-star"><Icon name="star" /></div>
-  </div>;
 }
 
 function Summary({ state }) {
@@ -64,7 +51,7 @@ export default function Onboarding() {
   const location = useLocation();
   const titleRef = useRef(null);
   const screen = state.progression.ecran;
-  const step = ecrans.indexOf(screen);
+  const step = etapeDe[screen] ?? 0;
 
   const entered = useRef(false);
   useEffect(() => {
@@ -72,10 +59,11 @@ export default function Onboarding() {
     entered.current = true;
     const numero = Number(new URLSearchParams(location.search).get('zone'));
     const index = zonesRemplies.findIndex((z) => z.id === numero);
+    // Un jeune qui revient modifier ses choix garde « termine » : il peut repartir vers sa page à tout moment.
     if (index >= 0 && state.termine) {
-      update(entrerZone({ ...state, termine: false }, zonesRemplies, index));
+      update(entrerZone(state, zonesRemplies, index));
     } else if (state.termine) {
-      update({ ...state, termine: false, progression: { ecran: 'metiers', metier: 0, zone: 0 } });
+      update(entrerMetiers(state, zonesRemplies, metiers, 0));
     }
   }, [location.search, state, update]);
 
@@ -90,19 +78,10 @@ export default function Onboarding() {
 
   function answer(avis) {
     const index = state.progression.metier;
-    const next = choisirAvis(state, metiers[index], avis);
-    if (index + 1 < metiers.length) {
-      update({ ...next, progression: { ...next.progression, metier: index + 1 } });
-    } else update(entrerZone(next, zonesRemplies, 0));
+    update(apresAvis(choisirAvis(state, metiers[index], avis), zonesRemplies, metiers, index));
   }
   function back() {
-    if (screen === 'metiers') {
-      state.progression.metier ? go('metiers', { metier: state.progression.metier - 1 }) : go('bienvenue');
-    } else if (screen === 'favoris') {
-      state.progression.zone ? update(entrerZone(state, zonesRemplies, state.progression.zone - 1)) : go(metiers.length ? 'metiers' : 'bienvenue', { metier: Math.max(0, metiers.length - 1) });
-    } else if (screen === 'ajouts') {
-      zonesRemplies.length ? update(entrerZone(state, zonesRemplies, zonesRemplies.length - 1)) : go('bienvenue');
-    } else if (screen === 'recap') go('ajouts');
+    update(retour(state, zonesRemplies, metiers));
   }
   function addJob(event) {
     event.preventDefault();
@@ -112,6 +91,8 @@ export default function Onboarding() {
   }
 
   const metier = metiers[state.progression.metier];
+  const zoneDuMetier = metier && zones.find((z) => z.id === metier.zone);
+  const rangDansZone = metier ? zoneDuMetier.metiers.findIndex((m) => m.id === metier.id) + 1 : 0;
   const zone = zonesRemplies[state.progression.zone];
   const disponibles = zone ? candidats(zone, state.interets_metiers) : [];
   const hasInterested = disponibles.some((m) => state.interets_metiers[m.id] === 'interesse');
@@ -120,11 +101,9 @@ export default function Onboarding() {
 
   return <div className="onboarding">
     <a className="skip-link" href="#contenu" onClick={(event) => { event.preventDefault(); document.getElementById('contenu')?.focus(); }}>Aller au contenu</a>
-    <header className="site-header">
-      <div className="brand"><span className="brand-mark" aria-hidden="true">P</span><span><strong>Possibles<span className="brand-dot">.AI</span></strong><span className="brand-caption">Orientation augmentée</span></span></div>
-      <span className="demo-badge">{rapport.rdv}</span>
-    </header>
+    <EnTete />
     <main id="contenu" tabIndex={-1} className="mx-auto w-full max-w-3xl px-4 sm:px-6">
+      <p className="demo-badge">{rapport.rdv}</p>
       <nav aria-label="Les étapes de tes choix" className="steps">
         {etapes.map((label, index) => <div className={`step ${index === step ? 'current' : ''} ${index < step ? 'past' : ''}`} key={label} aria-current={index === step ? 'step' : undefined}>
           <span className="step-dot">{index < step ? <Icon name="check" /> : <span />}</span><span className="step-label">{label}</span>
@@ -135,19 +114,19 @@ export default function Onboarding() {
         {screen !== 'bienvenue' && <button className="back-button" onClick={back}><Icon name="back" />Retour</button>}
         {screen === 'bienvenue' ? <>
           <span className="eyebrow"><Icon name="book" />Ton rapport, tes envies</span>
-          <Illustration />
-          <h1 ref={titleRef} tabIndex={-1}>On reprend ton rapport <span className="text-violet-300">ensemble</span></h1>
+          <h1 ref={titleRef} tabIndex={-1}>On reprend ton rapport <span className="text-violet-clair">ensemble</span></h1>
           <p className="intro">Ton rapport te propose des métiers. Dis-nous ceux qui te parlent, comme tu l’as fait avec le psychologue.</p>
           <p className="muted welcome-note">Ça prend deux minutes, et tu peux changer d’avis quand tu veux.</p>
-          <div className="actions"><button className="primary" onClick={() => go(metiers.length ? 'metiers' : 'ajouts')}>C’est parti</button><span className="action-note"><Icon name="clock" />À ton rythme, sans bonne ou mauvaise réponse</span></div>
+          <div className="actions"><button className="primary" onClick={() => update(entrerMetiers(state, zonesRemplies, metiers, 0))}>C’est parti</button><span className="action-note"><Icon name="clock" />À ton rythme, sans bonne ou mauvaise réponse</span></div>
         </> : screen === 'metiers' && metier ? <>
-          <div className="progress-caption"><span>Métier {state.progression.metier + 1} sur {metiers.length}</span><span>Ton avis compte</span></div>
-          <progress className="job-progress" aria-label="Métiers parcourus" max={metiers.length} value={state.progression.metier + 1} />
-          <p className="zone-announcement" key={metier.zone}>{metier.zone_label}</p>
-          <div className="job-illustration" aria-hidden="true"><Icon name="book" /><span className="mini-spark"><Icon name="spark" /></span></div>
-          <span className="eyebrow">Une piste de ton rapport</span>
+          <div className="zone-banner" key={metier.zone}>
+            <span className="zone-number">Zone {metier.zone}</span>
+            <span className="duration"><Icon name="clock" />{zoneDuMetier.duree} de préparation</span>
+          </div>
+          <div className="progress-caption"><span>Métier {rangDansZone} sur {zoneDuMetier.metiers.length}</span><span>Ton avis compte</span></div>
+          <progress className="job-progress" aria-label={`Métiers parcourus dans la zone ${metier.zone}`} max={zoneDuMetier.metiers.length} value={rangDansZone} />
+          <span className="eyebrow job-eyebrow">Une piste de ton rapport</span>
           <h1 ref={titleRef} tabIndex={-1}>{metier.nom}</h1>
-          <span className="duration duration-badge"><Icon name="clock" />{zones.find((z) => z.id === metier.zone).duree} de préparation</span>
           <div className="description"><p id="description-metier">{expanded ? metier.description : `${metier.description.slice(0, 70).trimEnd()}…`}</p><button className="text-button" aria-expanded={expanded} aria-controls="description-metier" onClick={() => setExpanded(!expanded)}>{expanded ? 'Lire moins' : 'Lire la suite'}</button></div>
           {state.interets_metiers[metier.id] && <p className="previous-answer">Ton avis actuel : {avisLabels[state.interets_metiers[metier.id]]}</p>}
           <p className="muted small-note">Une piste, pas une consigne. Tu peux changer d’avis.</p>
@@ -157,21 +136,24 @@ export default function Onboarding() {
             <button className="quiet" onClick={() => answer('non')}><Icon name="close" />Pas intéressé</button>
           </div>
         </> : screen === 'favoris' && zone ? <>
-          <span className="eyebrow"><Icon name="star" />Tes préférés · {state.progression.zone + 1} sur {zonesRemplies.length}</span>
-          <h1 ref={titleRef} tabIndex={-1}>Ton préféré parmi ceux-là ?</h1>
-          <span className="duration duration-badge"><Icon name="clock" />{zone.duree} de préparation</span>
+          <div className="zone-banner">
+            <span className="zone-number">Zone {zone.id}</span>
+            <span className="duration"><Icon name="clock" />{zone.duree} de préparation</span>
+          </div>
+          <span className="eyebrow job-eyebrow"><Icon name="star" />Ton préféré de la zone {zone.id}</span>
+          <h1 ref={titleRef} tabIndex={-1}>Ton préféré parmi ceux-là ?</h1>
           <p className="intro">{hasInterested ? 'Parmi les métiers qui te parlent, choisis celui que tu as le plus envie d’explorer.' : disponibles.length ? 'Tu avais choisi « Pas pour l’instant ». L’un de ces métiers te parle quand même ?' : 'Tu n’as retenu aucun métier dans cette zone. Tu peux continuer et changer d’avis plus tard.'}</p>
           <div className="favorites" role="group" aria-label="Choisis un seul préféré">
             {disponibles.map((m) => <button key={m.id} className={`favorite ${state.favoris[zone.id] === m.id ? 'selected' : ''}`} aria-pressed={state.favoris[zone.id] === m.id} onClick={() => update({ ...state, favoris: { ...state.favoris, [zone.id]: m.id } })}><span className="choice-circle">{state.favoris[zone.id] === m.id && <Icon name="check" />}</span><span>{m.nom}</span><Icon name="star" /></button>)}
           </div>
           <p className="muted small-note">Ce temps de préparation ne ferme aucune porte.</p>
           <div className="actions">
-            <button className="primary" disabled={!state.favoris[zone.id]} onClick={() => update(entrerZone(state, zonesRemplies, state.progression.zone + 1))}>Confirmer mon préféré</button>
-            {!hasInterested && <button className="quiet" onClick={() => update(entrerZone({ ...state, favoris: { ...state.favoris, [zone.id]: null } }, zonesRemplies, state.progression.zone + 1))}>Aucun pour l’instant</button>}
+            <button className="primary" disabled={!state.favoris[zone.id]} onClick={() => update(apresPrefere(state, zonesRemplies, metiers, state.progression.zone))}>Confirmer mon préféré</button>
+            {!hasInterested && <button className="quiet" onClick={() => update(apresPrefere({ ...state, favoris: { ...state.favoris, [zone.id]: null } }, zonesRemplies, metiers, state.progression.zone))}>Aucun pour l’instant</button>}
           </div>
         </> : screen === 'ajouts' ? <>
-          <span className="eyebrow"><Icon name="spark" />D’autres idées · facultatif</span>
-          <h1 ref={titleRef} tabIndex={-1}>Le psychologue t’a parlé d’autres métiers ?</h1>
+          <span className="eyebrow"><Icon name="search" />D’autres idées · facultatif</span>
+          <h1 ref={titleRef} tabIndex={-1}>Le psychologue t’a parlé d’autres métiers ?</h1>
           <p className="intro">Ajoute les pistes que vous avez évoquées ensemble. Tu peux aussi passer cette étape.</p>
           <form onSubmit={addJob}>
             <label className="search-label" htmlFor="job-search">Rechercher un métier</label>

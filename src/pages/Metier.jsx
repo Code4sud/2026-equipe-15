@@ -45,20 +45,12 @@ function Titre({ surtitre, children, id }) {
   )
 }
 
-// Illustration en aplats : pas de photo, une image simple qui donne l'idée du secteur.
+// Icône du secteur : un repère visuel, sans décor.
 function Illustration({ Icone }) {
   return (
-    <div aria-hidden="true" className="relative h-36 overflow-hidden bg-violet sm:h-44">
-      <span className="absolute -left-8 -top-10 h-36 w-36 rounded-full bg-violet-fonce" />
-      <span className="absolute -bottom-14 left-1/3 h-32 w-32 rounded-full bg-repere/80" />
-      <span className="absolute right-10 top-6 h-10 w-10 rounded-full border-4 border-white/40" />
-      <span className="absolute bottom-6 right-24 h-4 w-4 rounded-full bg-white/70" />
-      <span className="absolute inset-0 grid place-items-center">
-        <span className="grid h-20 w-20 place-items-center rounded-3xl bg-white text-violet shadow-xl shadow-black/20 sm:h-24 sm:w-24">
-          <Icone size={42} strokeWidth={1.75} />
-        </span>
-      </span>
-    </div>
+    <span aria-hidden="true" className="grid h-14 w-14 place-items-center rounded-2xl bg-violet/15 text-violet-clair">
+      <Icone size={28} strokeWidth={1.75} />
+    </span>
   )
 }
 
@@ -131,10 +123,10 @@ export default function Metier() {
         </nav>
 
         {/* En-tête du métier */}
-        <header key={metier.id} className="carte apparait mt-3 overflow-hidden">
+        <header key={metier.id} className="carte apparait mt-3 p-5 sm:p-7">
           <Illustration Icone={Icone} />
-          <div className="p-5 sm:p-7">
-            <div className="flex flex-wrap gap-2">
+          <div>
+            <div className="mt-4 flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-carte-2 px-3 py-1 text-xs font-bold uppercase tracking-wide text-violet-clair">
                 <Hourglass size={13} aria-hidden="true" /> {dureeDeZone(metier.zone)} de préparation
               </span>

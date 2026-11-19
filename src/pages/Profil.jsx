@@ -39,7 +39,7 @@ export default function Profil() {
     <section aria-labelledby="titre-interets" className="carte p-5 sm:p-6">
       <p className="text-sm font-semibold text-repere">Tes intérêts professionnels</p>
       <h2 id="titre-interets" className="mt-1 text-2xl font-bold">Ce qui t’attire</h2>
-      <p className="mt-3 text-base leading-relaxed text-doux">Plusieurs centres d’intérêt peuvent coexister. Les dimensions en rose sont celles mises en avant dans ton rapport.</p>
+      <p className="mt-3 text-base leading-relaxed text-doux">Plusieurs centres d’intérêt peuvent coexister. Les dimensions en couleur sont celles mises en avant dans ton rapport.</p>
       <p className="mt-3 text-base font-semibold">{explication(4)}</p>
       <Radar dimensions={rapport.interets_riasec} titre="Tes intérêts professionnels" />
       <Dimensions dimensions={rapport.interets_riasec} />
@@ -52,7 +52,7 @@ export default function Profil() {
       <p className="mt-3 text-base font-semibold">{explication(5)}</p>
       <ul className="mt-6 space-y-5">{aptitudes.map((aptitude) => <li key={aptitude.label}>
         <p className={`mb-2 text-base ${aptitude.value === maximum ? 'font-semibold text-repere' : 'text-texte'}`}>{aptitude.label}</p>
-        <div aria-hidden="true" className="h-3 overflow-hidden rounded-full bg-ligne"><div className={`h-full rounded-full ${aptitude.value === maximum ? 'bg-repere' : 'bg-violet-clair'}`} style={{ width: `${Math.max(0, Math.min(100, aptitude.value / aptitude.echelle_max * 100 || 0))}%` }} /></div>
+        <div aria-hidden="true" className="h-3 overflow-hidden rounded-full bg-ligne"><div className={`h-full rounded-full ${aptitude.value === maximum ? 'bg-repere' : 'bg-violet-clair/50'}`} style={{ width: `${Math.max(0, Math.min(100, aptitude.value / aptitude.echelle_max * 100 || 0))}%` }} /></div>
         {aptitude.value === maximum && <p className="mt-2 text-sm text-doux">Un point qui ressort dans ce rapport</p>}
       </li>)}</ul>
       {!aptitudes.length && <p className="mt-4 text-base text-doux">Ces données ne sont pas disponibles dans ton rapport.</p>}
@@ -61,7 +61,7 @@ export default function Profil() {
     <section aria-labelledby="titre-personnalite" className="carte p-5 sm:p-6">
       <p className="text-sm font-semibold text-repere">Ta personnalité</p>
       <h2 id="titre-personnalite" className="mt-1 text-2xl font-bold">Ta façon d’aborder les situations</h2>
-      <p className="mt-3 text-base leading-relaxed text-doux">Chaque dimension peut s’exprimer de plusieurs façons. Ce graphique ne résume pas qui tu es. Les dimensions en rose sont mises en avant dans ton rapport.</p>
+      <p className="mt-3 text-base leading-relaxed text-doux">Chaque dimension peut s’exprimer de plusieurs façons. Ce graphique ne résume pas qui tu es. Les dimensions en couleur sont mises en avant dans ton rapport.</p>
       <p className="mt-3 text-base font-semibold">{explication(6)}</p>
       <Radar dimensions={rapport.personnalite_hexaco} titre="Ta personnalité" />
       <Dimensions dimensions={rapport.personnalite_hexaco} />

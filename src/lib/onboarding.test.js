@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { STORAGE_KEY, candidats, choisirAvis, entrerZone, initialState, enregistrerChoix, lireChoix } from './onboarding.js';
+import { STORAGE_KEY, apresAvis, apresPrefere, candidats, choisirAvis, entrerMetiers, entrerZone, initialState, enregistrerChoix, lireChoix, retour } from './onboarding.js';
 
 const metiers = [{ id: 'a', zone: 1 }, { id: 'b', zone: 1 }, { id: 'c', zone: 3 }];
 const catalogue = [{ id: 'psy-1', nom: 'Métier FICTIF' }];
@@ -82,4 +82,33 @@ test('des données locales malformées sont écartées et les positions sont bor
   assert.deepEqual(state.ajouts_psy, []);
   assert.equal(state.progression.metier, 2);
   assert.equal(state.progression.zone, 0);
+});
+
+// Parcours zone par zone : les métiers d'une zone, son préféré, puis la zone suivante.
+const en = (ecran, metier, zone) => ({ ...initialState(), interets_metiers: { a: 'interesse', b: 'interesse', c: 'interesse' }, progression: { ecran, metier, zone } });
+
+test('zone par zone : on reste dans la zone tant qu’il reste un métier, puis on choisit son préféré', () => {
+  assert.deepEqual(apresAvis(en('metiers', 0, 0), zones, metiers, 0).progression, { ecran: 'metiers', metier: 1, zone: 0 });
+  const fin = apresAvis(en('metiers', 1, 0), zones, metiers, 1);
+  assert.equal(fin.progression.ecran, 'favoris');
+  assert.equal(fin.progression.zone, 0);
+});
+
+test('zone par zone : après le préféré, les métiers de la zone suivante, puis les ajouts après la dernière', () => {
+  assert.deepEqual(apresPrefere(en('favoris', 1, 0), zones, metiers, 0).progression, { ecran: 'metiers', metier: 2, zone: 1 });
+  assert.equal(apresPrefere(en('favoris', 2, 1), zones, metiers, 1).progression.ecran, 'ajouts');
+  assert.equal(entrerMetiers(initialState(), [], [], 0).progression.ecran, 'ajouts');
+});
+
+test('zone par zone : le retour remonte le même chemin', () => {
+  assert.equal(retour(en('metiers', 0, 0), zones, metiers).progression.ecran, 'bienvenue');
+  assert.deepEqual(retour(en('metiers', 1, 0), zones, metiers).progression, { ecran: 'metiers', metier: 0, zone: 0 });
+  assert.deepEqual(retour(en('favoris', 1, 0), zones, metiers).progression, { ecran: 'metiers', metier: 1, zone: 0 });
+  const versZone1 = retour(en('metiers', 2, 1), zones, metiers);
+  assert.equal(versZone1.progression.ecran, 'favoris');
+  assert.equal(versZone1.progression.zone, 0);
+  const versDerniere = retour(en('ajouts', 2, 1), zones, metiers);
+  assert.equal(versDerniere.progression.ecran, 'favoris');
+  assert.equal(versDerniere.progression.zone, 1);
+  assert.equal(retour(en('recap', 2, 1), zones, metiers).progression.ecran, 'ajouts');
 });

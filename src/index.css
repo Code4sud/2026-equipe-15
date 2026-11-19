@@ -65,6 +65,9 @@ body {
   border-radius: 12px;
 }
 
+/* Un titre qui reçoit le focus par le code (changement de page) ne montre pas de cadre. */
+[tabindex="-1"]:focus-visible { outline: none; }
+
 .carte {
   background: var(--color-carte);
   border: 1px solid var(--color-ligne);

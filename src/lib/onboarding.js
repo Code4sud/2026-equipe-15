@@ -43,6 +43,47 @@ export function entrerZone(state, zones, index) {
   return { ...state, favoris, progression: { ...state.progression, ecran: 'favoris', zone: index } };
 }
 
+// Parcours zone par zone : les métiers d'une zone, puis son préféré, puis la zone suivante.
+// `zones` ne contient que les zones qui ont des métiers ; `metiers` est trié par zone.
+const indexDeZone = (zones, metier) => zones.findIndex((z) => z.id === metier.zone);
+const vers = (state, progression) => ({ ...state, progression: { ...state.progression, ...progression } });
+
+export function entrerMetiers(state, zones, metiers, index) {
+  const zone = zones[index];
+  const premier = zone ? metiers.findIndex((m) => m.zone === zone.id) : -1;
+  return premier < 0 ? vers(state, { ecran: 'ajouts' }) : vers(state, { ecran: 'metiers', metier: premier, zone: index });
+}
+
+// Après un avis : le métier suivant de la même zone, sinon le choix du préféré de cette zone.
+export function apresAvis(state, zones, metiers, index) {
+  const suivant = metiers[index + 1];
+  if (suivant && suivant.zone === metiers[index].zone) {
+    return vers(state, { ecran: 'metiers', metier: index + 1, zone: indexDeZone(zones, suivant) });
+  }
+  return entrerZone(state, zones, indexDeZone(zones, metiers[index]));
+}
+
+export function apresPrefere(state, zones, metiers, index) {
+  return entrerMetiers(state, zones, metiers, index + 1);
+}
+
+export function retour(state, zones, metiers) {
+  const { ecran, metier, zone } = state.progression;
+  if (ecran === 'metiers') {
+    const precedent = metiers[metier - 1];
+    if (!precedent) return vers(state, { ecran: 'bienvenue' });
+    if (precedent.zone === metiers[metier].zone) return vers(state, { metier: metier - 1 });
+    return entrerZone(state, zones, indexDeZone(zones, precedent));
+  }
+  if (ecran === 'favoris') {
+    const dernier = metiers.findLastIndex((m) => m.zone === zones[zone]?.id);
+    return dernier < 0 ? vers(state, { ecran: 'bienvenue' }) : vers(state, { ecran: 'metiers', metier: dernier });
+  }
+  if (ecran === 'ajouts') return zones.length ? entrerZone(state, zones, zones.length - 1) : vers(state, { ecran: 'bienvenue' });
+  if (ecran === 'recap') return vers(state, { ecran: 'ajouts' });
+  return state;
+}
+
 export function lireChoix(storage, rapportId, metiers, catalogue) {
   const empty = initialState();
   // Un localStorage bloqué est signalé à l'interface, plutôt que d'annoncer une sauvegarde.
