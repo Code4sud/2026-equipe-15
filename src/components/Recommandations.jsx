@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { Headphones, Compass, Briefcase, GraduationCap } from 'lucide-react'
 
 const CARTES = [
-  { id: 'synthese', titre: 'Écouter la synthèse', sous: 'Un résumé audio de 2 min de ton rapport.', Icone: Headphones },
+  { id: 'synthese', titre: 'Écouter la synthèse', sous: 'Le résumé audio de ton rapport.', Icone: Headphones },
   { id: 'profil', titre: 'Explorer ton profil', sous: 'Tes résultats et tes points forts.', Icone: Compass },
   { id: 'metiers', titre: 'Découvrir les métiers', sous: 'Tous les métiers de ton rapport.', Icone: Briefcase },
   { id: 'formations', titre: 'Voir les formations', sous: 'Les parcours pour y arriver.', Icone: GraduationCap },
@@ -15,7 +15,7 @@ export default function Recommandations() {
       <ul className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {CARTES.map(({ id, titre, sous, Icone }) => (
           <li key={id}>
-            <Link to={`/bientot/${id}`} className="carte flex h-full min-h-40 flex-col p-4 transition hover:border-violet-clair">
+            <Link to={`/${id}`} className="carte flex h-full min-h-40 flex-col p-4 transition hover:border-violet-clair">
               <span className="grid h-10 w-10 place-items-center rounded-full bg-violet/15 text-violet-clair">
                 <Icone size={20} aria-hidden="true" />
               </span>

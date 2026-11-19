@@ -16,7 +16,7 @@ function construireActions(onboarding) {
   return [
     ...favoris.slice(0, 3).map((m) => ({ id: `fiche-${m.id}`, texte: `Lis la fiche de ${m.nom}`, lien: `/metier/${m.id}` })),
     { id: 'formations', texte: 'Regarde les formations près de chez toi', lien: 'https://www.orientation-regionsud.fr/', externe: true },
-    { id: 'synthese', texte: 'Écoute la synthèse de ton rapport', lien: '/bientot/synthese' },
+    { id: 'synthese', texte: 'Écoute la synthèse de ton rapport', lien: '/synthese' },
   ]
 }
 
