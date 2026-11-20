@@ -9,6 +9,8 @@ import Synthese from './pages/Synthese.jsx'
 import Profil from './pages/Profil.jsx'
 import Metiers from './pages/Metiers.jsx'
 import Formations from './pages/Formations.jsx'
+import MesChoix from './pages/MesChoix.jsx'
+import MemoireDefilement from './lib/defilement.jsx'
 
 // La visionneuse embarque PDF.js : chargée seulement quand on l'ouvre.
 const Rapport = lazy(() => import('./pages/Rapport.jsx'))
@@ -21,6 +23,7 @@ function AccueilAvecChoix() {
 export default function App() {
   return (
     <HashRouter>
+      <MemoireDefilement />
       <OnboardingProvider>
         <Suspense fallback={<p className="p-6 text-doux">Chargement…</p>}>
           <Routes>
@@ -32,6 +35,7 @@ export default function App() {
             <Route path="/profil" element={<Profil />} />
             <Route path="/metiers" element={<Metiers />} />
             <Route path="/formations" element={<Formations />} />
+            <Route path="/choix" element={<MesChoix />} />
             {['synthese', 'profil', 'metiers', 'formations'].map((page) => (
               <Route key={page} path={`/bientot/${page}`} element={<Navigate to={`/${page}`} replace />} />
             ))}

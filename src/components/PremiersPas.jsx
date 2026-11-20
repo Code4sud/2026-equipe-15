@@ -1,72 +1,109 @@
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, ArrowUpRight } from 'lucide-react'
-import { metierParId } from '../lib/donnees.js'
+import { Check, ArrowUpRight, ChevronDown } from 'lucide-react'
+import { ZONES } from '../config.js'
+import { rapport } from '../lib/donnees.js'
 import { useOnboarding, usePremiersPasCoches } from '../lib/stockage.js'
+import { construireReserve, repartir, nouvellesApres } from '../lib/premiersPas.js'
 
-// Les actions se déduisent des choix de l'onboarding, sans IA.
-function construireActions(onboarding) {
-  const favoris = Object.keys(onboarding?.favoris ?? {})
-    .sort()
-    .map((zone) => metierParId(onboarding.favoris[zone]))
-    .filter(Boolean)
+const DUREES = Object.fromEntries(ZONES.map((z) => [z.num, z.duree]))
 
-  if (favoris.length === 0) {
-    return [{ id: 'choisir', texte: 'Choisis tes métiers préférés', lien: '/onboarding' }]
-  }
-  return [
-    ...favoris.slice(0, 3).map((m) => ({ id: `fiche-${m.id}`, texte: `Lis la fiche de ${m.nom}`, lien: `/metier/${m.id}` })),
-    { id: 'formations', texte: 'Regarde les formations près de chez toi', lien: 'https://www.orientation-regionsud.fr/', externe: true },
-    { id: 'synthese', texte: 'Écoute la synthèse de ton rapport', lien: '/synthese' },
-  ]
+function Etape({ etape, fait, nouvelle, onBasculer }) {
+  const classesTexte = `flex-1 py-2.5 ${fait ? 'text-doux line-through' : ''}`
+  return (
+    <li className={`flex items-center gap-3 ${nouvelle ? 'apparait' : ''}`}>
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={fait}
+        aria-label={etape.texte}
+        onClick={() => onBasculer(etape.id)}
+        className="grid h-11 w-11 shrink-0 place-items-center"
+      >
+        <span className={`grid h-6 w-6 place-items-center rounded-md border-2 transition ${fait ? 'border-coche bg-coche text-fond' : 'border-doux'}`}>
+          {fait && <Check size={15} strokeWidth={3.5} aria-hidden="true" />}
+        </span>
+      </button>
+      {!etape.lien ? (
+        <span className={classesTexte}>{etape.texte}</span>
+      ) : etape.externe ? (
+        <a href={etape.lien} target="_blank" rel="noreferrer" className={`${classesTexte} inline-flex items-center gap-1 hover:text-violet-clair`}>
+          {etape.texte} <ArrowUpRight size={15} className="shrink-0" aria-hidden="true" />
+          <span className="sr-only">(nouvel onglet)</span>
+        </a>
+      ) : (
+        <Link to={etape.lien} className={`${classesTexte} hover:text-violet-clair`}>{etape.texte}</Link>
+      )}
+    </li>
+  )
 }
 
 export default function PremiersPas() {
   const [onboarding] = useOnboarding()
   const [coches, basculer] = usePremiersPasCoches()
-  const actions = construireActions(onboarding)
-  const faites = actions.filter((a) => coches[a.id]).length
-  const triees = [...actions.filter((a) => !coches[a.id]), ...actions.filter((a) => coches[a.id])]
+  const [nouvelles, setNouvelles] = useState([])
+  const [annonce, setAnnonce] = useState('')
+  const liste = useRef(null)
+  const rangCoche = useRef(null)
+
+  // Les étapes se déduisent du rapport et des choix de l'onboarding, sans IA : voir lib/premiersPas.js.
+  const reserve = construireReserve({ metiers: rapport.metiers, onboarding, durees: DUREES })
+  const { visibles, faites, total } = repartir(reserve, coches)
+  const toutFait = total > 0 && faites.length === total
+
+  // L'étape cochée quitte la liste : le clavier reprend sur la case qui a pris sa place.
+  useEffect(() => {
+    if (rangCoche.current === null) return
+    const cases = liste.current?.querySelectorAll('button[role="checkbox"]') ?? []
+    cases[Math.min(rangCoche.current, cases.length - 1)]?.focus({ preventScroll: true })
+    rangCoche.current = null
+  }, [coches])
+
+  function auClic(id) {
+    const rang = visibles.findIndex((e) => e.id === id)
+    rangCoche.current = rang >= 0 ? rang : null
+    const apparues = nouvellesApres(reserve, coches, id)
+    setNouvelles(apparues.map((e) => e.id))
+    setAnnonce(apparues.length ? `Nouvelle étape : ${apparues.map((e) => e.texte).join('. ')}` : '')
+    basculer(id)
+  }
 
   return (
     <section aria-labelledby="titre-pas" className="carte apparait p-5 sm:p-6" style={{ animationDelay: '120ms' }}>
       <div className="flex items-center justify-between gap-3">
         <h2 id="titre-pas" className="text-lg font-semibold">Tes premiers pas</h2>
-        <span className="text-sm text-doux" aria-live="polite">{faites} sur {actions.length}</span>
+        <span className="shrink-0 text-sm text-doux">{faites.length} sur {total}</span>
       </div>
       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-ligne" aria-hidden="true">
-        <div className="h-full rounded-full bg-repere transition-all duration-500" style={{ width: `${(faites / actions.length) * 100}%` }} />
+        <div className="h-full rounded-full bg-repere transition-all duration-500" style={{ width: `${total ? (faites.length / total) * 100 : 0}%` }} />
       </div>
+      <p className="sr-only" aria-live="polite">{annonce}</p>
 
-      <ul className="mt-4 space-y-1">
-        {triees.map((action) => {
-          const fait = !!coches[action.id]
-          const classesLien = `flex-1 py-2.5 ${fait ? 'text-doux line-through' : 'hover:text-violet-clair'}`
-          return (
-            <li key={action.id} className="flex items-center gap-3">
-              <button
-                type="button"
-                role="checkbox"
-                aria-checked={fait}
-                aria-label={action.texte}
-                onClick={() => basculer(action.id)}
-                className="grid h-11 w-11 shrink-0 place-items-center"
-              >
-                <span className={`grid h-6 w-6 place-items-center rounded-md border-2 transition ${fait ? 'border-coche bg-coche text-fond' : 'border-doux'}`}>
-                  {fait && <Check size={15} strokeWidth={3.5} aria-hidden="true" />}
-                </span>
-              </button>
-              {action.externe ? (
-                <a href={action.lien} target="_blank" rel="noreferrer" className={`${classesLien} inline-flex items-center gap-1`}>
-                  {action.texte} <ArrowUpRight size={15} aria-hidden="true" />
-                  <span className="sr-only">(nouvel onglet)</span>
-                </a>
-              ) : (
-                <Link to={action.lien} className={classesLien}>{action.texte}</Link>
-              )}
-            </li>
-          )
-        })}
-      </ul>
+      {toutFait ? (
+        <p className="apparait mt-4 rounded-xl bg-carte-2 p-4 leading-relaxed">
+          Tu as fait tous tes premiers pas. Tu avances à ton rythme, et tu peux revenir sur chacun quand tu veux.
+        </p>
+      ) : (
+        <ul ref={liste} className="mt-4 space-y-1">
+          {visibles.map((etape) => (
+            <Etape key={etape.id} etape={etape} fait={false} nouvelle={nouvelles.includes(etape.id)} onBasculer={auClic} />
+          ))}
+        </ul>
+      )}
+
+      {faites.length > 0 && (
+        <details className="group mt-3 border-t border-ligne pt-1">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-doux hover:text-violet-clair [&::-webkit-details-marker]:hidden">
+            Déjà fait ({faites.length})
+            <ChevronDown size={18} className="shrink-0 transition group-open:rotate-180" aria-hidden="true" />
+          </summary>
+          <ul className="space-y-1 pb-1">
+            {faites.map((etape) => (
+              <Etape key={etape.id} etape={etape} fait nouvelle={false} onBasculer={auClic} />
+            ))}
+          </ul>
+        </details>
+      )}
     </section>
   )
 }

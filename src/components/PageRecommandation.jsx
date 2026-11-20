@@ -9,11 +9,11 @@ const PAGES = [
   ['/metiers', 'Les métiers'], ['/formations', 'Les formations'],
 ]
 
-export default function PageRecommandation({ titre, description, Icone, children }) {
+// Le défilement (haut de page, ou position retrouvée au retour) est géré par lib/defilement.jsx.
+export default function PageRecommandation({ titre, description, Icone, navigation = true, children }) {
   const { pathname } = useLocation()
   const titreRef = useRef(null)
   useEffect(() => {
-    window.scrollTo(0, 0)
     titreRef.current?.focus({ preventScroll: true })
   }, [pathname])
   return <>
@@ -28,9 +28,9 @@ export default function PageRecommandation({ titre, description, Icone, children
         </div>
         <p className="mt-3 text-base leading-relaxed text-doux">{description}</p>
       </header>
-      <nav aria-label="Pages des recommandations" className="mb-6 flex flex-wrap gap-2">
+      {navigation && <nav aria-label="Pages des recommandations" className="mb-6 flex flex-wrap gap-2">
         {PAGES.map(([url, label]) => <NavLink key={url} to={url} className={({ isActive }) => `inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold ${isActive ? 'border-violet bg-violet text-white' : 'border-ligne text-doux hover:border-violet-clair'}`}>{label}</NavLink>)}
-      </nav>
+      </nav>}
       <div className="space-y-5">{children}</div>
       <p className="mt-8 border-t border-ligne pt-5 text-base text-doux">Le rapport ouvre des pistes. Tu peux en parler avec le psychologue et changer d’avis.</p>
     </main>

@@ -68,7 +68,7 @@ export default function Resume() {
         )}
 
         <Link
-          to="/onboarding"
+          to="/choix"
           className="mt-1 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-violet-clair hover:underline"
         >
           <Pencil size={15} aria-hidden="true" /> Modifier mes choix

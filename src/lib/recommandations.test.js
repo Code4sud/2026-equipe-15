@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { modifierAvis, listerFormations } from './recommandations.js'
+import { modifierAvis, basculerPrefere, listerFormations } from './recommandations.js'
 
 const metiers = [{ id: 'fictif-a', zone: 1 }, { id: 'fictif-b', zone: 1 }, { id: 'fictif-c', zone: 3 }]
 
@@ -24,6 +24,16 @@ test('un préféré refusé est retiré, sans effacer le métier ni les autres a
 test('un préféré reporté est retiré si un autre métier de la zone intéresse le jeune', () => {
   const state = { interets_metiers: { 'fictif-a': 'plus_tard', 'fictif-b': 'non' }, favoris: { 1: 'fictif-a' } }
   assert.equal(modifierAvis(state, metiers[1], 'interesse', metiers).favoris[1], null)
+})
+
+test('l’étoile choisit un seul préféré par zone, s’enlève quand on la retouche, et refuse un métier non candidat', () => {
+  const state = { termine: true, interets_metiers: { 'fictif-a': 'interesse', 'fictif-b': 'interesse', 'fictif-c': 'non' }, favoris: { 1: 'fictif-a', 3: null } }
+  const autre = basculerPrefere(state, metiers[1], metiers)
+  assert.equal(autre.favoris[1], 'fictif-b')
+  assert.equal(basculerPrefere(autre, metiers[1], metiers).favoris[1], null)
+  assert.equal(basculerPrefere(state, metiers[2], metiers), state)
+  assert.equal(state.favoris[1], 'fictif-a')
+  assert.equal(autre.termine, true)
 })
 
 test('les formations combinent les filtres et n’inventent rien pour un métier sans données', () => {

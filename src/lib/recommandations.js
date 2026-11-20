@@ -11,6 +11,14 @@ export function modifierAvis(state, metier, valeur, metiers) {
   return { ...state, interets_metiers, favoris }
 }
 
+// L'étoile « Préféré » : un seul préféré par zone, parmi les candidats de la zone ; la retoucher l'enlève.
+export function basculerPrefere(state, metier, metiers) {
+  const zone = { metiers: metiers.filter((m) => m.zone === metier.zone) }
+  if (!candidats(zone, state.interets_metiers).some((m) => m.id === metier.id)) return state
+  const favoris = { ...state.favoris, [metier.zone]: state.favoris[metier.zone] === metier.id ? null : metier.id }
+  return { ...state, favoris }
+}
+
 export function listerFormations(metiers, infos, { metierId = '', alternance = false } = {}) {
   return metiers
     .filter((m) => !metierId || m.id === metierId)

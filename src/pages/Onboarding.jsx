@@ -5,6 +5,7 @@ import { useRechercheMetiers } from '../lib/rechercheMetiers.js';
 import { apresAvis, apresPrefere, avisLabels, candidats, choisirAvis, entrerMetiers, entrerZone, retour } from '../lib/onboarding.js';
 import { useOnboarding, useOnboardingStatus } from '../lib/onboarding-context.jsx';
 import EnTete from '../components/EnTete.jsx';
+import { revenir } from '../lib/defilement.jsx';
 import '../styles.css';
 
 const zonesRemplies = zones.filter((z) => z.metiers.length);
@@ -54,6 +55,9 @@ export default function Onboarding() {
   const screen = state.progression.ecran;
   const step = etapeDe[screen] ?? 0;
 
+  // Depuis la page « Modifier mes choix » (/onboarding?ecran=ajouts) : seul l'écran d'ajout sert, puis on y retourne.
+  const depuisChoix = state.termine && new URLSearchParams(location.search).get('ecran') === 'ajouts';
+  const versChoix = () => revenir(navigate, '/choix');
   const entered = useRef(false);
   useEffect(() => {
     if (entered.current) return;
@@ -61,12 +65,14 @@ export default function Onboarding() {
     const numero = Number(new URLSearchParams(location.search).get('zone'));
     const index = zonesRemplies.findIndex((z) => z.id === numero);
     // Un jeune qui revient modifier ses choix garde « termine » : il peut repartir vers sa page à tout moment.
-    if (index >= 0 && state.termine) {
+    if (depuisChoix) {
+      update({ ...state, progression: { ...state.progression, ecran: 'ajouts' } });
+    } else if (index >= 0 && state.termine) {
       update(entrerZone(state, zonesRemplies, index));
     } else if (state.termine) {
       update(entrerMetiers(state, zonesRemplies, metiers, 0));
     }
-  }, [location.search, state, update]);
+  }, [location.search, state, update, depuisChoix]);
 
   function go(ecran, changes = {}) {
     update({ ...state, progression: { ...state.progression, ...changes, ecran } });
@@ -112,7 +118,7 @@ export default function Onboarding() {
       </nav>
       {storageError && <p className="storage-warning" role="alert">Ton navigateur ne permet pas la sauvegarde. Tes choix restent disponibles dans cet onglet, mais ne seront pas gardés si tu le fermes.</p>}
       <section className={`panel ${screen === 'bienvenue' ? 'welcome' : ''}`}>
-        {screen !== 'bienvenue' && <button className="back-button" onClick={back}><Icon name="back" />Retour</button>}
+        {screen !== 'bienvenue' && <button className="back-button" onClick={depuisChoix && screen === 'ajouts' ? versChoix : back}><Icon name="back" />Retour</button>}
         {screen === 'bienvenue' ? <>
           <span className="eyebrow"><Icon name="book" />Ton rapport, tes envies</span>
           <h1 ref={titleRef} tabIndex={-1}>On reprend ton rapport <span className="text-violet-clair">ensemble</span></h1>
@@ -172,7 +178,9 @@ export default function Onboarding() {
             <button className="secondary add-button" type="submit" disabled={!selected}>Ajouter</button>
           </form>
           {state.ajouts_psy.length > 0 && <><h2 className="section-label">Tes pistes ajoutées</h2><ul className="added-list">{state.ajouts_psy.map((m) => <li key={m.id}><span>{m.nom}</span><button className="remove-button" aria-label={`Retirer ${m.nom}`} onClick={() => update({ ...state, ajouts_psy: state.ajouts_psy.filter((a) => a.id !== m.id) })}><Icon name="close" /></button></li>)}</ul></>}
-          <div className="actions"><button className="primary" onClick={() => go('recap')}>{state.ajouts_psy.length ? 'Continuer' : 'Passer cette étape'}</button></div>
+          <div className="actions">{depuisChoix
+            ? <button className="primary" onClick={versChoix}>Retour à mes choix</button>
+            : <button className="primary" onClick={() => go('recap')}>{state.ajouts_psy.length ? 'Continuer' : 'Passer cette étape'}</button>}</div>
         </> : <>
           <span className="eyebrow"><Icon name="check" />Tes envies, en un coup d’œil</span>
           <h1 ref={titleRef} tabIndex={-1}>Voilà ce qu’on retient</h1>
