@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Headphones } from 'lucide-react'
 import PageRecommandation, { SourceRapport } from '../components/PageRecommandation.jsx'
 import synthese from '../data/synthese-fictive.json'
-import { source } from '../lib/donnees.js'
+import { source, acces } from '../lib/donnees.js'
 import { useResume } from '../lib/resume.js'
 import { useOnboarding } from '../lib/stockage.js'
 
@@ -17,6 +17,10 @@ function SyntheseDuRapport() {
   const { statut, resume, reessayer } = useResume(onboarding)
   const [vitesse, setVitesse] = useState('1')
   const [lecture, setLecture] = useState(false)
+  const [audioKo, setAudioKo] = useState(false)
+  const lecteur = useRef(null)
+  // Audio créé par l'API (voix Piper) quand elle est réglée ; sinon, la voix de l'appareil.
+  const audioUrl = resume?.audio_url && !audioKo ? `${acces.api}${resume.audio_url}` : null
   const voixDisponible = typeof window !== 'undefined' && 'speechSynthesis' in window
   const pageDuFait = (id) => resume?.faits?.find((f) => f.id === id)?.page
   const phrases = (resume?.phrases ?? []).map((p) => ({ texte: p.texte, page: pageDuFait(p.faits?.[0]) }))
@@ -41,6 +45,17 @@ function SyntheseDuRapport() {
       {statut === 'chargement' && <p role="status" className="mt-2 text-base text-doux">Ton résumé s’écrit à partir de ton rapport. Quelques secondes…</p>}
       {statut === 'erreur' && <p role="alert" className="mt-2 text-base text-doux">Ton résumé n’est pas disponible pour l’instant. <button type="button" onClick={reessayer} className="min-h-11 font-semibold text-violet-clair hover:underline">Réessayer</button></p>}
       {statut === 'pret' && <>
+        {audioUrl ? <>
+          <p className="mb-5 mt-2 text-base text-doux">Une voix lit le résumé de ton rapport, mot pour mot. Tu peux faire une pause ou revenir en arrière.</p>
+          <audio ref={lecteur} src={audioUrl} aria-label="Le résumé de ton rapport, lu à voix haute" controls preload="none" className="w-full" onError={() => setAudioKo(true)}>
+            Ton navigateur ne peut pas lire cet audio. Le texte est disponible ci-dessous.
+          </audio>
+          <label className="mt-5 flex flex-wrap items-center gap-3 text-base">Vitesse de lecture
+            <select value={vitesse} onChange={(e) => { setVitesse(e.target.value); if (lecteur.current) lecteur.current.playbackRate = Number(e.target.value) }} className="min-h-11 rounded-xl border border-ligne bg-carte-2 px-3 text-texte">
+              <option value="0.8">Plus lentement</option><option value="1">Vitesse habituelle</option><option value="1.2">Un peu plus vite</option>
+            </select>
+          </label>
+        </> : <>
         <p className="mb-5 mt-2 text-base text-doux">La voix de ton appareil lit le résumé de ton rapport, mot pour mot.</p>
         {voixDisponible ? <div className="flex flex-wrap items-center gap-3">
           <button type="button" onClick={lecture ? arreter : ecouter} className="inline-flex min-h-12 items-center gap-2 rounded-full bg-violet px-6 font-semibold text-white">
@@ -52,6 +67,7 @@ function SyntheseDuRapport() {
             </select>
           </label>
         </div> : <p className="text-base text-doux">Ton navigateur ne peut pas lire le texte à voix haute. Tu peux le lire ci-dessous.</p>}
+        </>}
       </>}
     </section>
     {statut === 'pret' && <section aria-labelledby="titre-texte" className="carte p-5 sm:p-6">

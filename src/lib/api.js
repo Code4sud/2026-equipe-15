@@ -83,3 +83,18 @@ export async function demanderResume({ api, jeton, onboarding, fetch }) {
   if (!reponse.ok) throw new Error(`résumé indisponible (${reponse.status})`)
   return reponse.json()
 }
+
+// Recherche dans la table des métiers du Centre (O*NET), pour l'écran « Le psychologue t'a parlé
+// d'autres métiers ? ». Un métier trouvé devient { id: 'onet-<code>', nom }, la forme de ajouts_psy.
+// dans_rapport : l'id du métier s'il est déjà dans le rapport (il n'est alors pas à ajouter).
+export const ID_ONET = /^onet-[0-9A-Za-z.-]{1,20}$/
+
+export async function chercherMetiers({ api, jeton, q, fetch, signal }) {
+  const reponse = await fetch(`${api}/report/${jeton}/metiers?q=${encodeURIComponent(q)}&limite=8`, { signal })
+  if (!reponse.ok) throw new Error(`recherche indisponible (${reponse.status})`)
+  const { resultats } = await reponse.json()
+  return (Array.isArray(resultats) ? resultats : [])
+    .filter((r) => typeof r?.nom === 'string' && r.nom.trim() && typeof r?.code === 'string')
+    .map((r) => ({ id: `onet-${r.code}`, nom: r.nom.trim(), dansRapport: r.dans_rapport ?? null }))
+    .filter((m) => ID_ONET.test(m.id))
+}

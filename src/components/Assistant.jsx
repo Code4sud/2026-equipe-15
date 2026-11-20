@@ -1,39 +1,158 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bot, X, Send, MessageCircle, Maximize2, Minimize2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Sparkles, X, Send, MessageCircle, Maximize2, Minimize2, FileText, FlaskConical, ArrowRight, ArrowUpRight, RotateCcw } from 'lucide-react'
+import { rapport, infosMetiers, acces } from '../lib/donnees.js'
+import { useOnboarding } from '../lib/stockage.js'
+import { demander, SUGGESTIONS_DEPART, QUESTION_MAX } from '../lib/chat.js'
 
 const ACCUEIL = 'Pose-moi tes questions sur ton rapport, les métiers ou les formations !'
-const SUGGESTIONS = ['Pourquoi ces métiers ?', 'Quelles formations ?', 'Comment choisir entre deux métiers ?']
-// Pas encore branché sur le backend (étape 5) : réponse d'exemple.
-const REPONSE_EXEMPLE = "Je ne suis pas encore branché. Bientôt, je te répondrai en m'appuyant uniquement sur ton rapport, avec la page d'où vient chaque information."
 
-function Discussion({ id = 'msg-carte', hauteur = 'h-[420px]', pleinEcran, onFermer, onBasculer }) {
-  const [messages, setMessages] = useState([{ de: 'ia', texte: ACCUEIL }])
+function Puce() {
+  return <span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-repere" />
+}
+
+// Les sources d'une réponse : une page du rapport s'ouvre dans la visionneuse.
+function Sources({ sources }) {
+  if (!sources?.length) return null
+  return (
+    <div className="mt-3 border-t border-ligne pt-2.5">
+      <p className="text-[11px] font-bold uppercase tracking-wider text-doux">D'où ça vient</p>
+      <ul className="mt-1.5 flex flex-wrap gap-1.5">
+        {sources.map((s) => (
+          <li key={`${s.type}-${s.page ?? s.label}`}>
+            {s.type === 'rapport' ? (
+              <Link to={`/rapport/${s.page}`} className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-carte px-3 text-xs font-semibold text-violet-clair ring-1 ring-ligne transition hover:ring-violet-clair">
+                <FileText size={13} aria-hidden="true" /> {s.label}
+              </Link>
+            ) : (
+              <span className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-dashed border-ligne px-3 text-xs font-semibold text-doux">
+                <FlaskConical size={13} aria-hidden="true" /> {s.label}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function BulleIA({ m }) {
+  return (
+    <div className="flex items-end gap-2">
+      <span aria-hidden="true" className="mb-1 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-violet text-white">
+        <Sparkles size={14} />
+      </span>
+      <div className="apparait min-w-0 max-w-[88%] rounded-2xl rounded-bl-md bg-carte-2 px-4 py-3">
+        {m.mode === 'repli' && (
+          <p className="mb-2 rounded-lg bg-carte px-2.5 py-1.5 text-xs text-doux">L'IA ne répond pas pour l'instant : je te réponds directement avec ton rapport.</p>
+        )}
+        <div className="space-y-2">
+          {m.paragraphes.map((p) => <p key={p}>{p}</p>)}
+          {m.puces?.length > 0 && (
+            <ul className="space-y-1.5">
+              {m.puces.map((p) => <li key={p} className="flex gap-2.5"><Puce />{p}</li>)}
+            </ul>
+          )}
+          {m.suiteParagraphes?.map((p) =>
+            p.startsWith('• ') ? <p key={p} className="flex gap-2.5"><Puce />{p.slice(2)}</p> : <p key={p}>{p}</p>,
+          )}
+        </div>
+        {m.liens?.length > 0 && (
+          <div className="mt-3 flex flex-col gap-1.5">
+            {m.liens.map((l) =>
+              l.href ? (
+                <a key={l.label} href={l.href} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center justify-between gap-2 rounded-xl bg-carte px-3 text-sm font-semibold hover:text-violet-clair">
+                  {l.label} <ArrowUpRight size={15} aria-hidden="true" /><span className="sr-only"> (nouvel onglet)</span>
+                </a>
+              ) : (
+                <Link key={l.label} to={l.to} className="group inline-flex min-h-10 items-center justify-between gap-2 rounded-xl bg-carte px-3 text-sm font-semibold hover:text-violet-clair">
+                  {l.label} <ArrowRight size={15} aria-hidden="true" className="transition group-hover:translate-x-0.5" />
+                </Link>
+              ),
+            )}
+          </div>
+        )}
+        <Sources sources={m.sources} />
+      </div>
+    </div>
+  )
+}
+
+function EnTrainDEcrire() {
+  return (
+    <div className="flex items-end gap-2" role="status">
+      <span aria-hidden="true" className="mb-1 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-violet text-white"><Sparkles size={14} /></span>
+      <span className="flex gap-1 rounded-2xl rounded-bl-md bg-carte-2 px-4 py-3.5">
+        {[0, 150, 300].map((d) => <span key={d} className="h-2 w-2 animate-bounce rounded-full bg-doux" style={{ animationDelay: `${d}ms` }} />)}
+        <span className="sr-only">L'assistant écrit…</span>
+      </span>
+    </div>
+  )
+}
+
+function Suggestions({ items, onChoisir, desactive }) {
+  if (!items?.length) return null
+  return (
+    <div className="flex flex-wrap gap-2 pl-9">
+      {items.map((s) => (
+        <button key={s} type="button" disabled={desactive} onClick={() => onChoisir(s)} className="min-h-10 rounded-full border border-violet-clair/50 px-3.5 text-sm font-medium text-violet-clair transition hover:bg-violet/15 disabled:opacity-40">
+          {s}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function Discussion({ id = 'msg-carte', hauteur = 'h-[520px]', pleinEcran, onFermer, onBasculer }) {
+  const [onboarding] = useOnboarding()
+  const [messages, setMessages] = useState([])
   const [saisie, setSaisie] = useState('')
+  const [attente, setAttente] = useState(false)
   const liste = useRef(null)
+  const enLigne = Boolean(acces)
 
-  // Garde le dernier message visible, y compris quand la fenêtre change de taille.
-  useEffect(() => { const el = liste.current; if (el) el.scrollTop = el.scrollHeight }, [messages, pleinEcran])
+  // Une nouvelle réponse s'affiche depuis son début ; sinon on suit le bas de la discussion.
+  useEffect(() => {
+    const el = liste.current
+    if (!el) return
+    const derniere = el.querySelector('[data-derniere-ia]')
+    if (derniere && !attente && messages.at(-1)?.de === 'ia') el.scrollTop = derniere.offsetTop - el.offsetTop - 8
+    else el.scrollTop = el.scrollHeight
+  }, [messages, attente, pleinEcran])
 
-  const envoyer = (texte) => {
+  const envoyer = async (texte) => {
     const t = texte.trim()
-    if (!t) return
-    setMessages((m) => [...m, { de: 'moi', texte: t }, { de: 'ia', texte: REPONSE_EXEMPLE }])
+    if (!t || attente) return
+    const historique = messages.map((m) => ({ de: m.de, texte: m.de === 'moi' ? m.texte : m.paragraphes.join(' ') }))
+    setMessages((m) => [...m, { de: 'moi', texte: t }])
     setSaisie('')
+    setAttente(true)
+    const reponse = await demander(t, { historique, rapport, onboarding, infosMetiers, acces })
+    setMessages((m) => [...m, { de: 'ia', ...reponse }])
+    setAttente(false)
   }
+
+  const derniere = messages.at(-1)
 
   return (
     <div className={`flex flex-col ${hauteur}`}>
       <div className="flex items-center justify-between gap-3 border-b border-ligne px-4 py-3">
         <div className="flex items-center gap-2.5">
-          <span className="grid h-9 w-9 place-items-center rounded-full bg-violet/15 text-violet-clair">
-            <Bot size={18} aria-hidden="true" />
+          <span className="relative grid h-10 w-10 place-items-center rounded-full bg-violet text-white">
+            <Sparkles size={18} aria-hidden="true" />
+            <span aria-hidden="true" className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-carte ${enLigne ? 'bg-emerald-400' : 'bg-repere'}`} />
           </span>
           <div>
             <p className="font-semibold leading-tight">Mon assistant IA</p>
-            <p className="text-xs text-doux">Il s'appuie sur ton rapport</p>
+            <p className="text-xs text-doux">{enLigne ? 'IA en local · elle s’appuie sur ton rapport' : 'Mode démo · il répond avec ton rapport'}</p>
           </div>
         </div>
         <div className="flex items-center">
+          {messages.length > 0 && (
+            <button type="button" onClick={() => setMessages([])} aria-label="Nouvelle discussion" className="grid h-11 w-11 place-items-center rounded-full hover:bg-texte/10">
+              <RotateCcw size={18} aria-hidden="true" />
+            </button>
+          )}
           {onBasculer && (
             <button type="button" onClick={onBasculer} aria-label={pleinEcran ? "Réduire l'assistant" : "Agrandir l'assistant"} className="grid h-11 w-11 place-items-center rounded-full hover:bg-texte/10">
               {pleinEcran ? <Minimize2 size={19} aria-hidden="true" /> : <Maximize2 size={19} aria-hidden="true" />}
@@ -47,39 +166,54 @@ function Discussion({ id = 'msg-carte', hauteur = 'h-[420px]', pleinEcran, onFer
         </div>
       </div>
 
-      <div ref={liste} className="flex-1 space-y-3 overflow-y-auto px-4 py-4" aria-live="polite">
-        {messages.map((m, i) => (
-          <p key={i} className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${m.de === 'moi' ? 'ml-auto rounded-br-md bg-violet text-white' : 'rounded-bl-md bg-carte-2'}`}>
-            {m.texte}
-          </p>
-        ))}
-        {messages.length === 1 && (
-          <div className="flex flex-wrap gap-2 pt-1">
-            {SUGGESTIONS.map((s) => (
-              <button key={s} type="button" onClick={() => envoyer(s)} className="min-h-11 rounded-full border border-violet-clair/50 px-4 text-sm font-medium text-violet-clair hover:bg-violet/15">
-                {s}
-              </button>
-            ))}
+      <div ref={liste} className="relative flex-1 space-y-3 overflow-y-auto px-4 py-4" aria-live="polite">
+        {messages.length === 0 ? (
+          <div className="apparait flex flex-col items-center px-2 pt-2 text-center">
+            <span aria-hidden="true" className="grid h-14 w-14 place-items-center rounded-2xl bg-violet/15 text-violet-clair"><Sparkles size={26} /></span>
+            <p className="mt-3 font-semibold">{ACCUEIL}</p>
+            <p className="mt-1 text-sm text-doux">Chaque réponse montre la page de ton rapport d'où elle vient.</p>
+            <div className="mt-4 flex w-full flex-col gap-2">
+              {SUGGESTIONS_DEPART.map((s) => (
+                <button key={s} type="button" onClick={() => envoyer(s)} className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-ligne bg-carte-2 px-4 text-left text-sm font-semibold transition hover:border-violet-clair">
+                  {s} <ArrowRight size={15} aria-hidden="true" className="shrink-0 text-violet-clair" />
+                </button>
+              ))}
+            </div>
           </div>
+        ) : (
+          messages.map((m, i) =>
+            m.de === 'moi' ? (
+              <p key={i} className="apparait ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md bg-violet px-4 py-2.5 text-white">{m.texte}</p>
+            ) : (
+              <div key={i} data-derniere-ia={i === messages.length - 1 ? '' : undefined}><BulleIA m={m} /></div>
+            ),
+          )
         )}
+        {attente && <EnTrainDEcrire />}
+        {!attente && derniere?.de === 'ia' && <Suggestions items={derniere.suggestions} onChoisir={envoyer} desactive={attente} />}
       </div>
 
       <form
         onSubmit={(e) => { e.preventDefault(); envoyer(saisie) }}
-        className="flex gap-2 border-t border-ligne p-3"
+        className="border-t border-ligne p-3"
         style={pleinEcran ? { paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' } : undefined}
       >
-        <label htmlFor={id} className="sr-only">Écrire un message</label>
-        <input
-          id={id}
-          value={saisie}
-          onChange={(e) => setSaisie(e.target.value)}
-          placeholder="Écrire un message…"
-          className="min-h-12 flex-1 rounded-full border border-ligne bg-carte-2 px-4 text-base placeholder:text-doux focus:border-violet-clair focus:outline-none"
-        />
-        <button type="submit" aria-label="Envoyer" className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-violet text-white transition hover:bg-violet-fonce disabled:opacity-40" disabled={!saisie.trim()}>
-          <Send size={19} aria-hidden="true" />
-        </button>
+        <div className="flex gap-2">
+          <label htmlFor={id} className="sr-only">Écrire un message</label>
+          <input
+            id={id}
+            value={saisie}
+            onChange={(e) => setSaisie(e.target.value)}
+            placeholder="Écrire un message…"
+            autoComplete="off"
+            maxLength={QUESTION_MAX}
+            className="min-h-12 min-w-0 flex-1 rounded-full border border-ligne bg-carte-2 px-4 text-base placeholder:text-doux focus:border-violet-clair focus:outline-none"
+          />
+          <button type="submit" aria-label="Envoyer" className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-violet text-white transition hover:bg-violet-fonce active:scale-95 disabled:opacity-40" disabled={!saisie.trim() || attente}>
+            <Send size={19} aria-hidden="true" />
+          </button>
+        </div>
+        <p className="mt-2 text-center text-[11px] text-doux">L'assistant peut se tromper. Il ne remplace pas le psychologue.</p>
       </form>
     </div>
   )
@@ -116,7 +250,7 @@ export function AssistantFlottant() {
 
   const cadre = pleinEcran
     ? 'inset-x-0 bottom-0 top-[var(--bandeau,0px)] bg-fond'
-    : 'right-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] h-[min(27rem,calc(100dvh-var(--bandeau,0px)-5.5rem))] w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-ligne bg-carte shadow-2xl shadow-black/30'
+    : 'right-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] h-[min(34rem,calc(100dvh-var(--bandeau,0px)-5.5rem))] w-[min(23rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-ligne bg-carte shadow-2xl shadow-black/30'
 
   return (
     <div className="lg:hidden">

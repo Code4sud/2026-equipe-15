@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { lireJeton, adresseApi, urlPdf, preparerDonnees, demanderResume, CLE_JETON } from './api.js'
+import { lireJeton, adresseApi, urlPdf, preparerDonnees, demanderResume, chercherMetiers, CLE_JETON } from './api.js'
 
 const JETON = 'a'.repeat(32)
 const API = 'http://localhost:8000'
@@ -95,4 +95,23 @@ test('demanderResume : envoie les choix du jeune, sans la progression de l’éc
     onboarding: { termine: true, interets_metiers: { 'z1-m1': 'interesse' }, favoris: { 1: 'z1-m1' }, ajouts_psy: [] },
   })
   await assert.rejects(demanderResume({ api: API, jeton: JETON, onboarding, fetch: async () => reponse(500, {}) }))
+})
+
+test('recherche de métiers : bonne adresse, résultats mis à la forme de ajouts_psy', async () => {
+  let appele
+  const fetch = async (url) => {
+    appele = url
+    return { ok: true, json: async () => ({ resultats: [
+      { nom: 'Métier FICTIF de la table', code: '11-1011.00', dans_rapport: null },
+      { nom: 'Métier FICTIF du rapport', code: '22-2022.00', dans_rapport: 'z1-m1' },
+      { nom: '', code: '33' }, { nom: 'sans code' },
+    ] }) }
+  }
+  const r = await chercherMetiers({ api: API, jeton: JETON, q: 'mét ier', fetch })
+  assert.equal(appele, `${API}/report/${JETON}/metiers?q=m%C3%A9t%20ier&limite=8`)
+  assert.deepEqual(r, [
+    { id: 'onet-11-1011.00', nom: 'Métier FICTIF de la table', dansRapport: null },
+    { id: 'onet-22-2022.00', nom: 'Métier FICTIF du rapport', dansRapport: 'z1-m1' },
+  ])
+  await assert.rejects(chercherMetiers({ api: API, jeton: JETON, q: 'x', fetch: async () => ({ ok: false, status: 503 }) }))
 })

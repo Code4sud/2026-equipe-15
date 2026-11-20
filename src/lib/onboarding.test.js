@@ -112,3 +112,14 @@ test('zone par zone : le retour remonte le même chemin', () => {
   assert.equal(versDerniere.progression.zone, 1);
   assert.equal(retour(en('recap', 2, 1), zones, metiers).progression.ecran, 'ajouts');
 });
+
+test('les métiers trouvés par l’API (onet-…) sont relus, les entrées douteuses écartées', () => {
+  const memoire = new Map()
+  const storage = { getItem: (k) => memoire.get(k) ?? null, setItem: (k, v) => memoire.set(k, v) }
+  const metiers = [{ id: 'a', zone: 1 }]
+  storage.setItem(STORAGE_KEY, JSON.stringify({ rapport_id: 'rdv-fictif', onboarding: {
+    termine: true, interets_metiers: {}, favoris: {},
+    ajouts_psy: [{ id: 'onet-11-1011.00', nom: ' Métier FICTIF de la table ' }, { id: 'onet-11-1011.00', nom: 'doublon' }, { id: 'pirate', nom: 'x' }, { id: 'onet-2', nom: 42 }],
+  } }))
+  assert.deepEqual(lireChoix(storage, 'rdv-fictif', metiers, []).ajouts_psy, [{ id: 'onet-11-1011.00', nom: 'Métier FICTIF de la table' }])
+})
