@@ -57,7 +57,7 @@ test('pages métier : trois liens de recherche, nom encodé, rien sans nom', () 
   const liens = liensMetier('  Métier  fictif & co ');
   assert.deepEqual(liens.map((l) => l.site), ['onisep', 'orientation-regionsud', 'france-travail']);
   assert.equal(liens[0].url, `${SITES.onisep}M%C3%A9tier%20fictif%20%26%20co`);
-  assert.equal(liens[1].url, 'https://www.orientation-regionsud.fr/metiers');
+  assert.equal(liens[1].url, 'https://www.orientation-regionsud.fr/metiers?Quoi=M%C3%A9tier%20fictif%20%26%20co');
   assert.equal(liens[2].url, `${SITES.franceTravail}M%C3%A9tier%20fictif%20%26%20co`);
   for (const l of liens) {
     assert.ok(l.titre);
