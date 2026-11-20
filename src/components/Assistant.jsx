@@ -91,7 +91,7 @@ function EnTrainDEcrire() {
     <div className="flex items-end gap-2" role="status">
       <span aria-hidden="true" className="mb-1 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-violet text-white"><Sparkles size={14} /></span>
       <span className="flex gap-1 rounded-2xl rounded-bl-md bg-carte-2 px-4 py-3.5">
-        {[0, 150, 300].map((d) => <span key={d} className="h-2 w-2 animate-bounce rounded-full bg-doux" style={{ animationDelay: `${d}ms` }} />)}
+        <span className="points-attente text-doux" aria-hidden="true"><span /><span /><span /></span>
         <span className="sr-only">L'assistant écrit…</span>
       </span>
     </div>
@@ -278,7 +278,7 @@ export function AssistantFlottant() {
           <MessageCircle size={24} aria-hidden="true" />
         </button>
       )}
-      <div role="dialog" aria-modal={modal} aria-label="Mon assistant IA" className={ouvert ? `fixed z-50 ${cadre}` : 'hidden'}>
+      <div role="dialog" aria-modal={modal} aria-label="Mon assistant IA" className={ouvert ? `fixed z-50 ${cadre} ${pleinEcran ? '' : 'fenetre-assistant'}` : 'hidden'}>
         <Discussion
           id="msg-flottant"
           hauteur="h-full"

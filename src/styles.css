@@ -4,7 +4,7 @@
 .onboarding { --teinte: color-mix(in oklab, var(--color-violet) 16%, transparent); font-synthesis: none; }
 .onboarding * { box-sizing: border-box; }
 .onboarding button, .onboarding input { font: inherit; }
-.onboarding button { cursor: pointer; transition: background .18s, border-color .18s; }
+.onboarding button { cursor: pointer; transition: background .18s, border-color .18s, transform .16s cubic-bezier(0.23, 1, 0.32, 1); }
 .onboarding button:disabled { cursor: not-allowed; opacity: .45; }
 .onboarding button, .onboarding a, .onboarding input { -webkit-tap-highlight-color: transparent; }
 .onboarding h1:focus { outline: none; }

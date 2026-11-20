@@ -32,7 +32,7 @@ export default function EnTete() {
           >
             {clair ? <Moon size={18} aria-hidden="true" /> : <Sun size={18} aria-hidden="true" />}
           </button>
-          <Link to="/bientot/connexion" aria-label="Mon espace" className={BOUTON_ROND}>
+          <Link to="/espace" aria-label="Mon espace" className={BOUTON_ROND}>
             <UserRound size={18} aria-hidden="true" />
           </Link>
         </nav>

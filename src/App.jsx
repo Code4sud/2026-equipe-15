@@ -10,6 +10,7 @@ import Profil from './pages/Profil.jsx'
 import Metiers from './pages/Metiers.jsx'
 import Formations from './pages/Formations.jsx'
 import MesChoix from './pages/MesChoix.jsx'
+import MonEspace from './pages/MonEspace.jsx'
 import MemoireDefilement from './lib/defilement.jsx'
 
 // La visionneuse embarque PDF.js : chargée seulement quand on l'ouvre.
@@ -36,6 +37,8 @@ export default function App() {
             <Route path="/metiers" element={<Metiers />} />
             <Route path="/formations" element={<Formations />} />
             <Route path="/choix" element={<MesChoix />} />
+            <Route path="/espace" element={<MonEspace />} />
+            <Route path="/bientot/connexion" element={<Navigate to="/espace" replace />} />
             {['synthese', 'profil', 'metiers', 'formations'].map((page) => (
               <Route key={page} path={`/bientot/${page}`} element={<Navigate to={`/${page}`} replace />} />
             ))}

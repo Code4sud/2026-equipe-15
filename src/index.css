@@ -74,11 +74,27 @@ body {
   border-radius: 16px;
 }
 
+/* Une seule courbe pour tout ce qui entre à l'écran : départ vif, arrivée douce. */
+:root { --ease-out: cubic-bezier(0.23, 1, 0.32, 1); }
+
+/* Entrée des cartes : courte (on la revoit à chaque page), petit déplacement. */
 @keyframes apparait {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }
 }
-.apparait { animation: apparait 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.apparait { animation: apparait 0.28s var(--ease-out) both; }
+@keyframes fondu { from { opacity: 0; } }
+
+/* La fenêtre de l'assistant s'ouvre depuis son bouton, en bas à droite. */
+@keyframes ouvre-assistant { from { opacity: 0; transform: scale(0.96); } }
+.fenetre-assistant { transform-origin: bottom right; animation: ouvre-assistant 0.18s var(--ease-out); }
+
+/* Tout ce qui se touche répond au doigt : léger enfoncement, relâché vite. */
+@layer base {
+  button, a { -webkit-tap-highlight-color: transparent; }
+  button, a[class*="rounded-"] { transition: transform 0.16s var(--ease-out); }
+  button:not(:disabled):active, a[class*="rounded-"]:active { transform: scale(0.97); }
+}
 
 /* Attente du résumé : des lignes fantômes parcourues par un reflet, et trois points qui montent tour à tour. */
 @keyframes reflet {
@@ -109,6 +125,9 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  /* Moins de mouvement, pas zéro : les cartes arrivent en fondu, sans déplacement. */
+  .apparait { animation: fondu 0.2s ease both !important; }
+  button:active, a:active { transform: none !important; }
 }
 
 .pb-securite { padding-bottom: calc(6rem + env(safe-area-inset-bottom)); }

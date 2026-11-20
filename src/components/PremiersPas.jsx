@@ -82,7 +82,7 @@ export default function PremiersPas() {
         <span className="shrink-0 text-sm text-doux">{faites.length} sur {total}</span>
       </div>
       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-ligne" aria-hidden="true">
-        <div className="h-full rounded-full bg-repere transition-all duration-500" style={{ width: `${total ? (faites.length / total) * 100 : 0}%` }} />
+        <div className="h-full w-full origin-left bg-repere transition-transform duration-300 ease-out" style={{ transform: `scaleX(${total ? faites.length / total : 0})` }} />
       </div>
       <p className="sr-only" aria-live="polite">{annonce}</p>
 
