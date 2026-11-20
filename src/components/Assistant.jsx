@@ -1,9 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useRef } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { Sparkles, X, Send, MessageCircle, Maximize2, Minimize2, FileText, FlaskConical, ArrowRight, ArrowUpRight, RotateCcw } from 'lucide-react'
 import { rapport, infosMetiers, acces } from '../lib/donnees.js'
 import { useOnboarding } from '../lib/stockage.js'
 import { demander, SUGGESTIONS_DEPART, QUESTION_MAX } from '../lib/chat.js'
+import { assistant, useAssistant } from '../lib/assistantEtat.js'
+
+// La discussion est liée au rapport affiché : celle d'un autre rapport n'est pas reprise.
+assistant.brancher(acces?.jeton ?? 'exemple')
 
 const ACCUEIL = 'Pose-moi tes questions sur ton rapport, les métiers ou les formations !'
 
@@ -21,11 +25,15 @@ function Sources({ sources }) {
         {sources.map((s) => (
           <li key={`${s.type}-${s.page ?? s.label}`}>
             {s.type === 'rapport' ? (
-              <Link to={`/rapport/${s.page}`} className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-carte px-3 text-xs font-semibold text-violet-clair ring-1 ring-ligne transition hover:ring-violet-clair">
+              <Link to={`/rapport/${s.page}`} className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-carte px-3 text-xs font-semibold text-violet-clair ring-1 ring-ligne transition hover:ring-violet-clair">
                 <FileText size={13} aria-hidden="true" /> {s.label}
               </Link>
+            ) : s.type === 'web' ? (
+              <a href={s.url} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-carte px-3 py-1 text-xs font-semibold text-violet-clair ring-1 ring-ligne transition hover:ring-violet-clair">
+                <ArrowUpRight size={13} aria-hidden="true" className="shrink-0" /> {s.label}<span className="sr-only"> (nouvel onglet)</span>
+              </a>
             ) : (
-              <span className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-dashed border-ligne px-3 text-xs font-semibold text-doux">
+              <span className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-dashed border-ligne px-3 text-xs font-semibold text-doux">
                 <FlaskConical size={13} aria-hidden="true" /> {s.label}
               </span>
             )}
@@ -61,11 +69,11 @@ function BulleIA({ m }) {
           <div className="mt-3 flex flex-col gap-1.5">
             {m.liens.map((l) =>
               l.href ? (
-                <a key={l.label} href={l.href} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center justify-between gap-2 rounded-xl bg-carte px-3 text-sm font-semibold hover:text-violet-clair">
+                <a key={l.label} href={l.href} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-between gap-2 rounded-xl bg-carte px-3 text-sm font-semibold hover:text-violet-clair">
                   {l.label} <ArrowUpRight size={15} aria-hidden="true" /><span className="sr-only"> (nouvel onglet)</span>
                 </a>
               ) : (
-                <Link key={l.label} to={l.to} className="group inline-flex min-h-10 items-center justify-between gap-2 rounded-xl bg-carte px-3 text-sm font-semibold hover:text-violet-clair">
+                <Link key={l.label} to={l.to} className="group inline-flex min-h-11 items-center justify-between gap-2 rounded-xl bg-carte px-3 text-sm font-semibold hover:text-violet-clair">
                   {l.label} <ArrowRight size={15} aria-hidden="true" className="transition group-hover:translate-x-0.5" />
                 </Link>
               ),
@@ -95,7 +103,7 @@ function Suggestions({ items, onChoisir, desactive }) {
   return (
     <div className="flex flex-wrap gap-2 pl-9">
       {items.map((s) => (
-        <button key={s} type="button" disabled={desactive} onClick={() => onChoisir(s)} className="min-h-10 rounded-full border border-violet-clair/50 px-3.5 text-sm font-medium text-violet-clair transition hover:bg-violet/15 disabled:opacity-40">
+        <button key={s} type="button" disabled={desactive} onClick={() => onChoisir(s)} className="min-h-11 rounded-full border border-violet-clair/50 px-3.5 text-sm font-medium text-violet-clair transition hover:bg-violet/15 disabled:opacity-40">
           {s}
         </button>
       ))}
@@ -103,34 +111,35 @@ function Suggestions({ items, onChoisir, desactive }) {
   )
 }
 
-function Discussion({ id = 'msg-carte', hauteur = 'h-[520px]', pleinEcran, onFermer, onBasculer }) {
+// La discussion vit dans le magasin partagé (lib/assistantEtat.js) : elle suit le jeune de page en page.
+function Discussion({ id = 'msg-carte', hauteur = 'h-[520px]', visible = true, pleinEcran, onFermer, onBasculer }) {
   const [onboarding] = useOnboarding()
-  const [messages, setMessages] = useState([])
-  const [saisie, setSaisie] = useState('')
-  const [attente, setAttente] = useState(false)
+  const { messages, saisie, attente, focus } = useAssistant()
   const liste = useRef(null)
+  const champ = useRef(null)
+  const focusVu = useRef(focus)
   const enLigne = Boolean(acces)
 
   // Une nouvelle réponse s'affiche depuis son début ; sinon on suit le bas de la discussion.
+  // Pareil à la réouverture et au retour d'une autre page : on retrouve le dernier message.
   useEffect(() => {
     const el = liste.current
-    if (!el) return
+    if (!el || !visible) return
     const derniere = el.querySelector('[data-derniere-ia]')
     if (derniere && !attente && messages.at(-1)?.de === 'ia') el.scrollTop = derniere.offsetTop - el.offsetTop - 8
     else el.scrollTop = el.scrollHeight
-  }, [messages, attente, pleinEcran])
+  }, [messages, attente, pleinEcran, visible])
 
-  const envoyer = async (texte) => {
-    const t = texte.trim()
-    if (!t || attente) return
-    const historique = messages.map((m) => ({ de: m.de, texte: m.de === 'moi' ? m.texte : m.paragraphes.join(' ') }))
-    setMessages((m) => [...m, { de: 'moi', texte: t }])
-    setSaisie('')
-    setAttente(true)
-    const reponse = await demander(t, { historique, rapport, onboarding, infosMetiers, acces })
-    setMessages((m) => [...m, { de: 'ia', ...reponse }])
-    setAttente(false)
-  }
+  // « Pose une question à ton assistant » (premiers pas) : le curseur va dans la zone de saisie affichée.
+  useEffect(() => {
+    if (focus === focusVu.current) return
+    focusVu.current = focus
+    if (champ.current?.offsetParent) champ.current.focus()
+  }, [focus])
+
+  // La demande part du magasin : la réponse arrive même si le jeune a changé de page entre-temps.
+  const envoyer = (texte) =>
+    assistant.poser(texte, (question, historique) => demander(question, { historique, rapport, onboarding, infosMetiers, acces }))
 
   const derniere = messages.at(-1)
 
@@ -149,7 +158,7 @@ function Discussion({ id = 'msg-carte', hauteur = 'h-[520px]', pleinEcran, onFer
         </div>
         <div className="flex items-center">
           {messages.length > 0 && (
-            <button type="button" onClick={() => setMessages([])} aria-label="Nouvelle discussion" className="grid h-11 w-11 place-items-center rounded-full hover:bg-texte/10">
+            <button type="button" onClick={assistant.vider} aria-label="Nouvelle discussion" className="grid h-11 w-11 place-items-center rounded-full hover:bg-texte/10">
               <RotateCcw size={18} aria-hidden="true" />
             </button>
           )}
@@ -202,8 +211,9 @@ function Discussion({ id = 'msg-carte', hauteur = 'h-[520px]', pleinEcran, onFer
           <label htmlFor={id} className="sr-only">Écrire un message</label>
           <input
             id={id}
+            ref={champ}
             value={saisie}
-            onChange={(e) => setSaisie(e.target.value)}
+            onChange={(e) => assistant.ecrire(e.target.value)}
             placeholder="Écrire un message…"
             autoComplete="off"
             maxLength={QUESTION_MAX}
@@ -229,21 +239,24 @@ export function AssistantCarte() {
 }
 
 // Téléphone : bouton flottant qui ouvre une petite fenêtre de discussion, agrandissable en plein écran.
+// Ouvert sur une page, il le reste quand on y revient (après la visionneuse PDF ou une fiche métier).
 export function AssistantFlottant() {
-  const [ouvert, setOuvert] = useState(false)
-  const [pleinEcran, setPleinEcran] = useState(false)
+  const { pathname } = useLocation()
+  const { ouvertSur, pleinEcran } = useAssistant()
+  const ouvert = ouvertSur === pathname
   const modal = ouvert && pleinEcran
 
   useEffect(() => {
     if (!ouvert) return
-    const echap = (e) => e.key === 'Escape' && setOuvert(false)
+    const echap = (e) => e.key === 'Escape' && assistant.fermer()
     document.addEventListener('keydown', echap)
     return () => document.removeEventListener('keydown', echap)
   }, [ouvert])
 
   // La page reste défilable derrière la petite fenêtre, pas derrière le plein écran.
   useEffect(() => {
-    if (!modal) return
+    // Sur ordinateur, la fenêtre flottante n'est pas affichée (lg:hidden) : rien à bloquer.
+    if (!modal || window.matchMedia('(min-width: 1024px)').matches) return
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = '' }
   }, [modal])
@@ -257,7 +270,7 @@ export function AssistantFlottant() {
       {!ouvert && (
         <button
           type="button"
-          onClick={() => setOuvert(true)}
+          onClick={() => assistant.ouvrir(pathname)}
           aria-label="Ouvrir l'assistant"
           className="fixed right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-violet text-white shadow-lg shadow-black/30 transition hover:bg-violet-fonce active:scale-95"
           style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
@@ -265,14 +278,14 @@ export function AssistantFlottant() {
           <MessageCircle size={24} aria-hidden="true" />
         </button>
       )}
-      {/* Reste monté une fois fermé : la discussion n'est pas perdue. */}
       <div role="dialog" aria-modal={modal} aria-label="Mon assistant IA" className={ouvert ? `fixed z-50 ${cadre}` : 'hidden'}>
         <Discussion
           id="msg-flottant"
           hauteur="h-full"
+          visible={ouvert}
           pleinEcran={pleinEcran}
-          onBasculer={() => setPleinEcran((p) => !p)}
-          onFermer={() => setOuvert(false)}
+          onBasculer={assistant.basculerPleinEcran}
+          onFermer={assistant.fermer}
         />
       </div>
     </div>

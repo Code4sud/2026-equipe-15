@@ -1,7 +1,9 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { preparerDonnees, lireJeton, CLE_JETON } from './lib/api.js'
+import { preparerDonnees, lireJeton, doitRecommencer, sansRecommencer, CLE_JETON } from './lib/api.js'
+import { STORAGE_KEY } from './lib/onboarding.js'
 import { installer } from './lib/donnees.js'
+import { oublierDiscussion } from './lib/assistantEtat.js'
 import LienIndisponible from './pages/LienIndisponible.jsx'
 import './index.css'
 
@@ -32,9 +34,21 @@ const stockage = {
 
 // On sait d'abord quel rapport afficher (celui du lien, ou l'exemple inventé), puis on charge le site :
 // les pages lisent leurs données dès leur import.
+// Lien « recommencer=1 » : les choix, les premiers pas cochés et la discussion avec l'assistant sont oubliés,
+// l'onboarding repart du début.
+function recommencerSiDemande() {
+  if (!doitRecommencer(window.location)) return
+  oublierDiscussion()
+  try {
+    for (const cle of [STORAGE_KEY, 'possibles.onboarding', 'possibles.premiers-pas']) stockage.removeItem(cle)
+  } catch { /* stockage indisponible : rien à oublier */ }
+  window.history.replaceState(null, '', window.location.pathname + window.location.search + sansRecommencer(window.location.hash))
+}
+
 async function demarrer() {
   const racine = createRoot(document.getElementById('root'))
   racine.render(<p className="p-6 text-doux">Chargement…</p>)
+  recommencerSiDemande()
   const depart = await preparerDonnees({
     env: import.meta.env,
     lieu: window.location,
@@ -43,6 +57,8 @@ async function demarrer() {
   })
   // Un autre lien collé dans l'onglet déjà ouvert : on retient son jeton et on recharge avec ce rapport.
   window.addEventListener('hashchange', () => {
+    // Lien « recommencer » ouvert dans l'onglet déjà chargé : on recharge, le démarrage oublie les choix.
+    if (doitRecommencer(window.location)) return window.location.reload()
     const jeton = lireJeton(window.location)
     if (!jeton || jeton === (depart.jeton ?? 'exemple')) return
     try {

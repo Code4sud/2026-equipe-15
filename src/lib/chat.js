@@ -263,11 +263,19 @@ export function lireReponseBackend(json) {
   const phrases = Array.isArray(json?.phrases) ? json.phrases.map((p) => p?.texte?.trim()).filter(Boolean) : []
   const paragraphes = phrases.length ? phrases : [String(json?.reponse ?? '').trim()].filter(Boolean)
   if (!paragraphes.length) throw new Error('Réponse vide')
-  const sources = (json.sources ?? []).filter((s) => Number.isInteger(s?.page)).map((s) => srcPage(s.page))
+  // Une source est une page du rapport, ou une fiche du site de la Région (adresse vérifiée ici).
+  const pages = (json.sources ?? []).filter((s) => Number.isInteger(s?.page)).map((s) => srcPage(s.page))
+  const fiches = (json.sources ?? [])
+    .filter((s) => typeof s?.url === 'string' && s.url.startsWith('https://www.orientation-regionsud.fr/'))
+    .map((s) => ({ type: 'web', url: s.url, label: String(s.titre ?? 'orientation-regionsud.fr') }))
   const horsRapport = json.dans_rapport === false
   return {
-    paragraphes, puces: [], suiteParagraphes: [], liens: [],
-    sources: sansDoublons(sources).sort((a, b) => a.page - b.page),
+    paragraphes, puces: [], suiteParagraphes: [],
+    // Pistes pour chercher ailleurs quand le site de la Région n'a pas de fiche (liens construits par l'API).
+    liens: (Array.isArray(json.pistes) ? json.pistes : [])
+      .filter((p) => typeof p?.url === 'string' && p.url.startsWith('https://') && typeof p?.titre === 'string')
+      .map((p) => ({ href: p.url, label: p.titre })),
+    sources: [...sansDoublons(pages).sort((a, b) => a.page - b.page), ...sansDoublons(fiches)],
     suggestions: horsRapport ? SUGGESTIONS_DEPART : [],
     mode: 'ia',
   }

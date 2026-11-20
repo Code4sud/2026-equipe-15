@@ -26,6 +26,8 @@ L'onboarding reste dans le navigateur du jeune : le site l'envoie dans le corps 
 - Côté site : l'adresse de l'API se lit dans `VITE_API_URL` (`.env` à la racine). Sans cette variable ou sans jeton,
   le site montre `rapport-fictif.json`. Avec un jeton refusé ou une API arrêtée, il affiche une erreur, pas l'exemple.
   `<site>#/?r=exemple` revient à l'exemple.
+- `&recommencer=1` ajouté au lien (`<site>#/?r=<jeton>&recommencer=1`) oublie les choix et la discussion gardés dans
+  le navigateur, puis disparaît de l'adresse : il sert à préparer une démonstration.
 
 ## Les routes
 
@@ -50,6 +52,7 @@ Même forme que le bloc `rapport` de `rapport-fictif.json`, avec en plus :
 | --- | --- | --- |
 | `liens` | chaque métier | `[{ site, titre, url }]` : trois adresses de recherche sur l'intitulé du métier. `site` vaut `onisep`, `orientation-regionsud` ou `france-travail`. À ouvrir dans un nouvel onglet. |
 | `onet` | chaque métier | Le métier retrouvé dans la table des métiers : `{ code, job_en }`. Intitulé présent sous plusieurs codes : `{ code: null, codes: […] }`. Introuvable : `null`. |
+| `region` | chaque métier | Ce que le site d'orientation de la Région dit du métier (voir « Le champ `region` »). Absent, `null` ou un objet. |
 | `controle_onet` | racine | `{ table, retrouves, introuvables }`. `table` : la table a été lue. `retrouves` : nombre de métiers retrouvés. `introuvables` : leurs intitulés. |
 | `rapport_pdf_url` | racine | `/report/{jeton}/pdf`, à préfixer par l'adresse de l'API. |
 | `notes` | racine | Liste de textes : les doutes de l'extraction, plus une ligne par métier introuvable dans la table. |
@@ -82,6 +85,61 @@ Même forme que le bloc `rapport` de `rapport-fictif.json`, avec en plus :
 ```
 
 Sans table des métiers sur la machine : `onet` est absent et `controle_onet.table` vaut `false`. Les `liens` restent.
+
+#### Le champ `region`
+
+Trois cas, à ne pas confondre :
+
+- **absent** : le métier n'a pas été cherché sur le site de la Région (pas de dossier `prive/regionsud/`, ou rapport
+  non préparé : son intitulé n'est pas dans `correspondances.json`). Rien n'a été lu : le site affiche des liens de
+  recherche (`liens`), sans rien affirmer sur le site de la Région.
+- **`null`** : le métier a été cherché, le site de la Région n'a pas de fiche pour lui. Le site le dit et donne des
+  pistes ailleurs (ONISEP, France Travail).
+- **un objet** : la fiche lue dans `prive/regionsud/fiches/`, renvoyée telle quelle, plus `formations`.
+
+| Champ | Contenu |
+| --- | --- |
+| `titre`, `url`, `slug` | L'intitulé de la fiche, son adresse (toujours sous `https://www.orientation-regionsud.fr/`) et son nom de fichier. `titre` peut différer du `nom` du métier : c'est « la fiche la plus proche », et le site le dit. |
+| `lu_le`, `source` | Date de lecture (`AAAA-MM-JJ`) et texte de source, les organismes entre parenthèses. |
+| `salaire_median_net_mensuel`, `salaire_source` | Entier, en euros net par mois, et la phrase qui dit d'où il vient. À présenter comme un repère (« la moitié des personnes gagnent plus de… »). |
+| `missions` | Liste de textes. Le premier est une phrase d'introduction. |
+| `acces`, `formations_url` | Comment on accède au métier (texte) ; adresse des formations sur le site de la Région. |
+| `horaires`, `conditions`, `structures`, `diplomes` | Listes de textes. Seules les lignes d'`horaires` qui commencent par « Travail » sont utilisées. `diplomes` n'est pas affiché. |
+| `recrute` | Booléen : le site classe le métier parmi ceux qui recrutent. |
+| `indicateurs` | `{ demandeurs_emploi, difficultes_recrutement, emplois_saisonniers, evolution_emploi_5_ans, sans_diplome, diplomes_du_superieur }` : des textes, ou `null`. Ils décrivent la région, pas le jeune. |
+| `code_rome` | Une lettre et 4 chiffres. Sert à retrouver les formations. |
+| `formations` | `[{ titre, url, organisme, ville, dates, type }]`, avec parfois `departement`, `alternance`, `cpf`, `financeur`. Dans l'ordre du site de la Région, sans classement. Liste vide si rien n'a été lu pour ce code. |
+
+Un métier avec sa fiche (les autres champs du métier ne changent pas) :
+
+```json
+{
+  "id": "z1-m1",
+  "nom": "Métier fictif A",
+  "region": {
+    "slug": "metier-fictif-a",
+    "titre": "Métier fictif A",
+    "url": "https://www.orientation-regionsud.fr/metiers/metier-fictif-a",
+    "lu_le": "2026-01-01",
+    "source": "orientation-regionsud.fr (Organisme fictif)",
+    "recrute": false,
+    "salaire_median_net_mensuel": 1000,
+    "salaire_source": "Source inventée.",
+    "indicateurs": { "demandeurs_emploi": "100", "difficultes_recrutement": null, "emplois_saisonniers": "10 %", "evolution_emploi_5_ans": null, "sans_diplome": "10 %", "diplomes_du_superieur": "10 %" },
+    "missions": ["Phrase d'introduction inventée.", "Mission inventée."],
+    "acces": "Accès inventé.",
+    "formations_url": "https://www.orientation-regionsud.fr/formations?Rome=Z9999",
+    "code_rome": "Z9999",
+    "diplomes": [],
+    "conditions": ["Condition inventée."],
+    "horaires": ["Travail à des horaires inventés."],
+    "structures": ["Lieu inventé"],
+    "formations": [
+      { "titre": "Formation fictive A", "url": "https://www.orientation-regionsud.fr/formations/formation-fictive-a", "organisme": "Organisme fictif", "ville": "Ville fictive", "departement": "00", "dates": "01/01/26 - 31/01/26", "type": "Type inventé", "alternance": true }
+    ]
+  }
+}
+```
 
 ### `GET /report/{jeton}/metiers?q=&limite=`
 
@@ -183,8 +241,9 @@ Réponse :
 | --- | --- |
 | `reponse` | Le texte entier (les `phrases` mises bout à bout, ou une phrase fixe du backend). |
 | `phrases` | `[{ texte, faits }]` : chaque phrase acceptée et les faits qu'elle cite. Peut être vide. |
-| `sources` | `[{ fait, page, texte }]` : les faits cités, sans doublon. `page` : page du PDF. `fait` : `f1`, `f2`… (faits du résumé), `zones` (ce qu'est une zone) ou l'`id` d'un métier (`z1-m1`). |
+| `sources` | `[{ fait, page, texte }]` : les faits cités, sans doublon. `page` : page du PDF. `fait` : `f1`, `f2`… (faits du résumé), `zones` (ce qu'est une zone) ou l'`id` d'un métier (`z1-m1`). Fait du site de la Région (`rs-…`) : `page` vaut `null`, avec `url` et `titre` en plus (voir plus bas). |
 | `dans_rapport` | `true` : réponse tirée du rapport. `false` : la réponse n'y est pas. `null` : repli. |
+| `pistes` | Seulement quand le site de la Région n'a pas l'information : `[{ metier, site, titre, url }]`, où chercher ailleurs. Absent sinon. |
 | `genere_par` | `{ mode, modele, raison }`. `mode` : `ia` ou `repli`. En repli, `modele` vaut `null` et `raison` dit pourquoi. |
 | `controle` | `{ phrases_refusees, raisons }`, comme pour le résumé. |
 
@@ -222,6 +281,100 @@ Replis :
 
 Pas de cache, pas de streaming : la réponse arrive en une fois, parfois après plusieurs secondes.
 
+#### Avec les informations du site de la Région
+
+Seulement si le site de la Région a été lu pour ce rapport (au moins un de ses métiers dans
+`prive/regionsud/correspondances.json`). Sinon, rien de ce qui suit n'arrive : pas de fait `rs-…`, pas de `pistes`.
+Dans tous les cas, un métier nommé dans la question passe avant les préférés dans les réponses écrites par le backend.
+
+- **Faits `rs-…`.** Le modèle reçoit 6 faits de la Région au plus : `rs-<id du métier>` (`rs-z1-m1`), pour les métiers
+  nommés dans la question ou la discussion, puis les préférés, puis les « interesse ». Une phrase qui en cite un a le
+  droit de parler de salaire ou de diplôme ; ses nombres doivent toujours figurer dans le fait.
+- **Sources.** Un fait `rs-…` cité donne `{ fait, page: null, texte, url, titre }` : `url` est l'adresse de la fiche,
+  `titre` vaut `orientation-regionsud.fr : <titre de la fiche>`. Le site n'affiche une `url` que sous
+  `https://www.orientation-regionsud.fr/`.
+- **Réponses fixes** (`dans_rapport: false`, mode `ia`), écrites par le backend quand le modèle dit que ce n'est pas
+  dans le rapport, ou quand ses phrases sur un métier sont refusées deux fois (`genere_par.raison` le dit alors) :
+  - *salaire, la fiche en donne un* : « Ton rapport ne parle pas de salaire. », puis une ligne par métier, qui cite
+    son fait `rs-…` ;
+  - *formations, la fiche dit comment accéder au métier* : la réponse sur les temps de préparation, plus une ligne
+    par métier, « D'après le site de la Région, pour « … » (fiche « … ») : … », qui cite son fait `rs-…` ;
+  - *aucune fiche pour les métiers concernés* (salaire, formations, horaires, débouchés…), *ou fiche sans salaire ou
+    sans accès* pour une question de salaire ou de formations : « Je n'ai pas trouvé […] sur le site d'orientation
+    de la Région. », puis où chercher. Pour une question de formations, les temps de
+    préparation du rapport sont donnés avant. `pistes` porte deux adresses de recherche (ONISEP et France Travail, pas le site de la Région) par
+    métier nommé dans la question, 3 métiers au plus ; liste vide si aucun n'est nommé. Rien n'est inventé à la place.
+
+Deux exemples : une phrase du modèle qui cite un fait `rs-…`, puis la réponse fixe pour un métier sans fiche (une
+seule des trois `pistes` est montrée).
+
+```json
+{
+  "reponse": "D'après le site de la Région, pour « Métier fictif A », la moitié des personnes à temps plein gagnent plus de 1000 euros net par mois.",
+  "phrases": [
+    { "texte": "D'après le site de la Région, pour « Métier fictif A », la moitié des personnes à temps plein gagnent plus de 1000 euros net par mois.", "faits": ["rs-z1-m1"] }
+  ],
+  "sources": [
+    {
+      "fait": "rs-z1-m1",
+      "page": null,
+      "texte": "Ce que dit le site orientation-regionsud.fr pour « Métier fictif A » (fiche la plus proche sur ce site : « Métier fictif A »). Salaire : la moitié des personnes qui exercent ce métier à temps plein gagnent plus de 1000 euros net par mois (Insee, salariés 2022). C'est un repère, pas une promesse.",
+      "url": "https://www.orientation-regionsud.fr/metiers/metier-fictif-a",
+      "titre": "orientation-regionsud.fr : Métier fictif A"
+    }
+  ],
+  "dans_rapport": true,
+  "genere_par": { "mode": "ia", "modele": "modele-fictif" },
+  "controle": { "phrases_refusees": 0, "raisons": [] }
+}
+```
+
+```json
+{
+  "reponse": "Je n'ai pas trouvé d'information sur « Métier fictif B » sur le site d'orientation de la Région. Tu peux chercher sur le site de l'ONISEP ou sur France Travail, ou en parler au psychologue.",
+  "phrases": [
+    { "texte": "Je n'ai pas trouvé d'information sur « Métier fictif B » sur le site d'orientation de la Région.", "faits": [] },
+    { "texte": "Tu peux chercher sur le site de l'ONISEP ou sur France Travail, ou en parler au psychologue.", "faits": [] }
+  ],
+  "sources": [],
+  "dans_rapport": false,
+  "pistes": [
+    { "metier": "Métier fictif B", "site": "onisep", "titre": "Le métier, les études et les formations (ONISEP)", "url": "https://www.onisep.fr/recherche?context=metier&text=M%C3%A9tier%20fictif%20B" }
+  ],
+  "genere_par": { "mode": "ia", "modele": "modele-fictif" },
+  "controle": { "phrases_refusees": 0, "raisons": [] }
+}
+```
+
+## Données locales lues par l'API
+
+Les informations du site de la Région sont préparées **avant** la démonstration, hors du dépôt, et rangées dans
+`prive/regionsud/` (jamais versionné ; `regionsud/` dans `RAPPORTS_DIR` si cette variable est réglée). Pendant
+l'utilisation, l'API ne lit que ces fichiers : rien n'est lu sur le site de la Région, ni par l'API ni par le
+navigateur du jeune. Un fichier absent ou illisible vaut « pas d'information ».
+
+| Fichier | Forme | Ce que l'API en lit |
+| --- | --- | --- |
+| `correspondances.json` | `{ "<nom exact du métier dans le rapport>": { slug, … } }` | `slug` : le nom de la fiche retenue (minuscules, chiffres, tirets), ou `null` s'il n'y en a pas. Les autres champs servent à la préparation. |
+| `fiches/<slug>.json` | L'objet `region` décrit plus haut, sans `formations` | Tout. La fiche est ignorée si son `url` ne commence pas par `https://www.orientation-regionsud.fr/`. |
+| `formations/<ROME>.json` | `{ "formations": [ … ], … }`, `<ROME>` étant le `code_rome` de la fiche | La liste `formations`, renvoyée dans `region.formations`. |
+
+```json
+{
+  "correspondances.json": {
+    "Métier fictif A": { "slug": "metier-fictif-a", "titre": "Métier fictif A" },
+    "Métier fictif B": { "slug": null, "titre": null }
+  },
+  "formations/Z9999.json": {
+    "rome": "Z9999",
+    "lu_le": "2026-01-01",
+    "formations": [
+      { "titre": "Formation fictive A", "url": "https://www.orientation-regionsud.fr/formations/formation-fictive-a", "organisme": "Organisme fictif", "ville": "Ville fictive", "dates": "01/01/26 - 31/01/26", "type": "Type inventé" }
+    ]
+  }
+}
+```
+
 ## Règles de lecture
 
 - `value` sert à comparer les dimensions d'une même personne entre elles. Ne l'affichez pas comme une note.
@@ -231,3 +384,4 @@ Pas de cache, pas de streaming : la réponse arrive en une fois, parfois après 
 - `interets_metiers` prend trois valeurs : `interesse`, `plus_tard`, `non`. Un métier absent n'a pas encore été vu.
 - `favoris` donne un identifiant de métier par zone, ou `null`.
 - `onet.code` et `controle_onet` servent au contrôle : ils ne sont pas à montrer au jeune.
+- `region` vient d'un autre site que le rapport : toujours le dire au jeune, avec le lien vers la fiche (`region.url`).

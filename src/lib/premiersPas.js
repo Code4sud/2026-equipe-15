@@ -1,6 +1,7 @@
 // Les « premiers pas » de l'accueil : une réserve ordonnée d'étapes, déduite du rapport et des choix
 // du jeune par des règles simples, sans IA. Chaque étape mène à une page du site, à un site public,
-// ou à une action dans la vraie vie (sans lien). Fonctions pures : rien n'est lu ni écrit ici.
+// à une action du site (action: 'assistant' ouvre l'assistant), ou à une action dans la vraie vie
+// (sans lien). Fonctions pures : rien n'est lu ni écrit ici.
 
 export const NOMBRE_VISIBLE = 4
 
@@ -29,7 +30,7 @@ export function construireReserve({ metiers: recus, onboarding = {}, durees = {}
   }
   etapes.push({ id: 'synthese', texte: 'Écoute le résumé de ton rapport', lien: '/synthese' })
   etapes.push({ id: 'profil', texte: 'Regarde ton profil', lien: '/profil' })
-  etapes.push({ id: 'assistant', texte: 'Pose une question à ton assistant' })
+  etapes.push({ id: 'assistant', texte: 'Pose une question à ton assistant', action: 'assistant' })
 
   const page = favoris[0]?.source?.page
   if (Number.isInteger(page)) {

@@ -18,6 +18,23 @@ export function lireJeton({ hash = '', search = '' }) {
   return null
 }
 
+// « recommencer=1 » dans le lien : oublier les choix déjà faits et refaire l'onboarding depuis le début.
+// Pratique pour préparer une démonstration ; le paramètre est retiré de l'adresse une fois appliqué.
+const requetes = ({ hash = '', search = '' }) => [hash.includes('?') ? hash.slice(hash.indexOf('?')) : '', search]
+
+export function doitRecommencer(lieu) {
+  return requetes(lieu).some((requete) => new URLSearchParams(requete).get('recommencer') === '1')
+}
+
+export function sansRecommencer(hash) {
+  if (!hash.includes('?')) return hash
+  const chemin = hash.slice(0, hash.indexOf('?'))
+  const parametres = new URLSearchParams(hash.slice(hash.indexOf('?')))
+  parametres.delete('recommencer')
+  const reste = parametres.toString()
+  return reste ? `${chemin}?${reste}` : chemin
+}
+
 export function adresseApi(env) {
   const adresse = (env?.VITE_API_URL ?? '').trim().replace(/\/+$/, '')
   return adresse || null

@@ -31,6 +31,7 @@ import { configOllama } from '../ai/ollama.js';
 import { audioDisponible, empreinteAudio, EMPREINTE_VALIDE, fichierAudio, ErreurAudio } from '../audio/synthese.js';
 import { tableOnet, controlerMetiers, chercherMetiers, cleIntitule, trouverMetiers } from '../onet/table.js';
 import { liensMetier } from '../report/liensMetiers.js';
+import { metierCherche, infosRegion } from '../chat/regionsud.js';
 
 // Table O*NET, ou null si elle est absente ou illisible (l'analyse reste
 // servie sans le contrôle).
@@ -95,7 +96,10 @@ router.get('/:jeton', (req, res) =>
     const controle = controles.controle;
     const metiers = controles.metiers.map((m) => {
       const officiels = table ? trouverMetiers(table, m.nom) : [];
-      return { ...m, liens: liensMetier(officiels.length === 1 ? officiels[0].job_fr : m.nom) };
+      // `region` : fiche d'orientation-regionsud.fr lue dans prive/regionsud/. Absent si le métier n'y a pas
+      // été cherché (dossier absent, ou rapport non préparé) ; null s'il a été cherché sans trouver de fiche.
+      const region = metierCherche(m.nom) ? { region: infosRegion(m.nom) } : {};
+      return { ...m, liens: liensMetier(officiels.length === 1 ? officiels[0].job_fr : m.nom), ...region };
     });
     const notes = controle.introuvables.map((nom) => `Champ des possibles — métier introuvable dans la table O*NET : « ${nom} »`);
     return {

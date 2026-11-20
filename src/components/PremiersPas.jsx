@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Check, ArrowUpRight, ChevronDown } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
+import { Check, ArrowUpRight, ChevronDown, MessageCircle } from 'lucide-react'
 import { ZONES } from '../config.js'
 import { rapport } from '../lib/donnees.js'
 import { useOnboarding, usePremiersPasCoches } from '../lib/stockage.js'
 import { construireReserve, repartir, nouvellesApres } from '../lib/premiersPas.js'
+import { assistant } from '../lib/assistantEtat.js'
 
 const DUREES = Object.fromEntries(ZONES.map((z) => [z.num, z.duree]))
 
 function Etape({ etape, fait, nouvelle, onBasculer }) {
+  const { pathname } = useLocation()
   const classesTexte = `flex-1 py-2.5 ${fait ? 'text-doux line-through' : ''}`
   return (
     <li className={`flex items-center gap-3 ${nouvelle ? 'apparait' : ''}`}>
@@ -24,7 +26,12 @@ function Etape({ etape, fait, nouvelle, onBasculer }) {
           {fait && <Check size={15} strokeWidth={3.5} aria-hidden="true" />}
         </span>
       </button>
-      {!etape.lien ? (
+      {etape.action === 'assistant' ? (
+        // Ouvre l'assistant sur cette page (téléphone) et place le curseur dans sa zone de saisie.
+        <button type="button" onClick={() => assistant.ouvrir(pathname, { focus: true })} className={`${classesTexte} inline-flex min-h-11 items-center gap-1.5 text-left hover:text-violet-clair`}>
+          {etape.texte} <MessageCircle size={15} className="shrink-0" aria-hidden="true" />
+        </button>
+      ) : !etape.lien ? (
         <span className={classesTexte}>{etape.texte}</span>
       ) : etape.externe ? (
         <a href={etape.lien} target="_blank" rel="noreferrer" className={`${classesTexte} inline-flex items-center gap-1 hover:text-violet-clair`}>

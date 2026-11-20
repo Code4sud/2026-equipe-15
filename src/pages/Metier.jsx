@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { revenir } from '../lib/defilement.jsx'
 import {
-  ArrowLeft, ArrowUpRight, Briefcase, ChevronLeft, ChevronRight, Clock, Euro, FileText, GraduationCap,
+  ArrowLeft, ArrowUpRight, Briefcase, ChevronDown, ChevronLeft, ChevronRight, Clock, Euro, FileText, GraduationCap,
   HeartHandshake, Hourglass, MapPin, Star, Store, Sun, Sunrise, Sunset, Wrench, Info,
 } from 'lucide-react'
 import EnTete from '../components/EnTete.jsx'
 import { AssistantFlottant } from '../components/Assistant.jsx'
-import { metierParId, dureeDeZone, infosMetiers } from '../lib/donnees.js'
+import InfosRegion, { ResumeRegion, Source } from '../components/InfosRegion.jsx'
+import { metierParId, dureeDeZone, infosMetiers, source } from '../lib/donnees.js'
 import { useOnboarding } from '../lib/stockage.js'
 import { candidats } from '../lib/onboarding.js'
 import { zones } from '../data/rapport.js'
@@ -20,21 +22,6 @@ const AVIS = [
   { valeur: 'plus_tard', label: 'Pas pour l’instant' },
   { valeur: 'non', label: 'Pas intéressé' },
 ]
-
-// Une source citée en bas de page : la pastille y descend.
-function Source({ n, children }) {
-  const aller = () => document.getElementById(`source-${n}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  return (
-    <button
-      type="button"
-      onClick={aller}
-      className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-ligne px-2.5 text-xs font-semibold text-doux transition hover:border-violet-clair hover:text-violet-clair"
-    >
-      <span className="grid h-4 w-4 place-items-center rounded-full bg-carte-2 text-[10px] text-texte">{n}</span>
-      {children}
-    </button>
-  )
-}
 
 function Titre({ surtitre, children, id }) {
   return (
@@ -61,23 +48,58 @@ function listeFavoris(onboarding) {
     .filter((id) => id && metierParId(id))
 }
 
+
+const dateEnFrancais = (iso) => {
+  const d = new Date(`${iso}T12:00:00`)
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+function LiensAilleurs({ liens }) {
+  return (
+    <ul className="mt-4 space-y-2">
+      {liens.map((l) => (
+        <li key={l.site}>
+          <a href={l.url} target="_blank" rel="noreferrer" className="flex min-h-12 items-center justify-between gap-3 rounded-xl bg-carte-2 px-4 py-2 font-semibold hover:text-violet-clair">
+            {l.titre} <ArrowUpRight size={17} className="shrink-0" aria-hidden="true" /><span className="sr-only"> (nouvel onglet)</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export default function Metier() {
+  const navigate = useNavigate()
   const { id } = useParams()
   const metier = metierParId(id)
   const [onboarding, setOnboarding] = useOnboarding()
   const [alternance, setAlternance] = useState(false)
 
-  useEffect(() => { window.scrollTo(0, 0) }, [id])
-
   if (!metier) return <Bientot titre="Ce métier n'est pas dans ton rapport" />
 
-  const infos = infosMetiers[metier.id]
+  // Quatre cas. Avec l'API : fiche de la Région (objet), pas de fiche sur le site (null), ou site de la Région
+  // jamais lu (champ absent : l'API n'a pas de dossier regionsud/). Sans API : exemples inventés.
+  const region = metier.region ?? null
+  const infos = region ? null : infosMetiers[metier.id]
+  // « Pas d'info sur le site de la Région » ne s'écrit que si le site a vraiment été lu pour ce métier.
+  const sansFiche = source === 'api' && metier.region === null
   const Icone = ICONES[infos?.icone] ?? Briefcase
   const avis = onboarding?.interets_metiers?.[metier.id]
   const favoris = listeFavoris(onboarding)
   const rang = favoris.indexOf(metier.id)
   const estFavori = rang !== -1
   const page = metier.source.page
+  // Sans fiche sur le site de la Région, on n'y renvoie pas : restent l'ONISEP et France Travail.
+  const ailleurs = (metier.liens ?? []).filter((l) => !sansFiche || l.site !== 'orientation-regionsud')
+  const liens = ailleurs.length
+    ? ailleurs
+    : sansFiche
+      ? [{ site: 'onisep', titre: 'onisep.fr', url: 'https://www.onisep.fr/' }]
+      : [{ site: 'orientation-regionsud', titre: 'orientation-regionsud.fr', url: 'https://www.orientation-regionsud.fr/' }]
+  const aUnSalaire = Number(region?.salaire_median_net_mensuel) > 0
+  const luLe = region?.lu_le ? dateEnFrancais(region.lu_le) : null
+  // « orientation-regionsud.fr (France Travail, CARIF-OREF, Onisep) » : on ne garde que les organismes cités.
+  const donnees = region?.source?.match(/\(([^)]+)\)/)?.[1] ?? null
 
   // Même règle que l'onboarding : le préféré d'une zone doit rester un de ses candidats.
   const changerAvis = (valeur) => {
@@ -92,13 +114,22 @@ export default function Metier() {
 
   const formations = infos?.formations.filter((f) => !alternance || f.alternance) ?? []
 
+  const lienPage = (
+    <div className="mt-4 flex flex-wrap items-center gap-2">
+      <Source n={1}>Ton rapport, page {page}</Source>
+      <Link to={`/rapport/${page}`} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-violet-clair hover:underline">
+        <FileText size={15} aria-hidden="true" /> Ouvrir la page {page}
+      </Link>
+    </div>
+  )
+
   return (
     <>
       <EnTete />
-      <main className="pb-securite mx-auto max-w-6xl px-4 pt-4 lg:pb-12">
+      <main className={`pb-securite mx-auto px-4 pt-4 lg:pb-12 ${infos ? 'max-w-6xl' : 'max-w-3xl'}`}>
         {/* Navigation : retour, et passage d'un préféré à l'autre */}
         <nav aria-label="Navigation du métier" className="flex items-center justify-between gap-2">
-          <Link to="/" className="inline-flex min-h-11 items-center gap-2 font-semibold text-doux hover:text-texte">
+          <Link to="/" onClick={(e) => { e.preventDefault(); revenir(navigate) }} className="inline-flex min-h-11 items-center gap-2 font-semibold text-doux hover:text-texte">
             <ArrowLeft size={18} aria-hidden="true" /> Retour
           </Link>
           {estFavori && favoris.length > 1 && (
@@ -145,34 +176,10 @@ export default function Metier() {
           </div>
         </header>
 
-        <div className="mt-5 grid gap-5 lg:grid-cols-3 lg:items-start">
-          {/* Colonne de droite sur ordinateur, en premier sur téléphone */}
-          <aside className="space-y-5 lg:sticky lg:top-[calc(var(--bandeau,0px)+5.5rem)] lg:col-start-3 lg:row-start-1">
-            <section aria-labelledby="titre-avis" className="carte apparait p-5" style={{ animationDelay: '60ms' }}>
-              <h2 id="titre-avis" className="text-lg font-bold">Ton avis sur ce métier</h2>
-              <div role="radiogroup" aria-labelledby="titre-avis" className="mt-3 grid gap-2">
-                {AVIS.map((a) => {
-                  const actif = avis === a.valeur
-                  return (
-                    <button
-                      key={a.valeur}
-                      type="button"
-                      role="radio"
-                      aria-checked={actif}
-                      onClick={() => changerAvis(a.valeur)}
-                      className={`min-h-12 rounded-xl border px-4 text-left font-semibold transition ${
-                        actif ? 'border-violet bg-violet text-white' : 'border-ligne hover:border-violet-clair'
-                      }`}
-                    >
-                      {a.label}
-                    </button>
-                  )
-                })}
-              </div>
-              <p className="mt-3 text-sm text-doux">Tu peux changer d'avis quand tu veux. Ce métier reste dans ta liste.</p>
-            </section>
-
-            {infos && (
+        <div key={`corps-${metier.id}`} className={`mt-5 grid gap-5 ${infos ? 'lg:grid-cols-3 lg:items-start' : ''}`}>
+          {/* Mode exemple : colonne de droite sur ordinateur, en premier sur téléphone */}
+          {infos && (
+            <aside className="space-y-5 lg:sticky lg:top-[calc(var(--bandeau,0px)+5.5rem)] lg:col-start-3 lg:row-start-1">
               <section aria-labelledby="titre-coup-oeil" className="carte apparait p-5" style={{ animationDelay: '120ms' }}>
                 <h2 id="titre-coup-oeil" className="text-lg font-bold">En un coup d'œil</h2>
                 <dl className="mt-3 space-y-3">
@@ -195,97 +202,138 @@ export default function Metier() {
                 </dl>
                 <div className="mt-3"><Source n={2}>Exemple inventé</Source></div>
               </section>
-            )}
-          </aside>
+            </aside>
+          )}
 
-          <div className="space-y-5 lg:col-span-2 lg:row-start-1">
-            {/* Ce que dit le rapport : la seule source réelle de cette page */}
-            <section aria-labelledby="titre-rapport" className="carte apparait p-5 sm:p-7" style={{ animationDelay: '80ms' }}>
-              <Titre id="titre-rapport" surtitre="Ton rapport">Ce que dit ton rapport</Titre>
-              <blockquote className="border-l-4 border-repere pl-4 text-lg leading-relaxed">{metier.description}</blockquote>
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <Source n={1}>Ton rapport, page {page}</Source>
-                <Link to={`/rapport/${page}`} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-violet-clair hover:underline">
-                  <FileText size={15} aria-hidden="true" /> Ouvrir la page {page}
-                </Link>
-              </div>
-            </section>
-
-            {infos ? (
+          <div className={`min-w-0 space-y-5 ${infos ? 'lg:col-span-2 lg:row-start-1' : ''}`}>
+            {region ? (
               <>
-                <section aria-labelledby="titre-journee" className="carte apparait p-5 sm:p-7" style={{ animationDelay: '140ms' }}>
-                  <Titre id="titre-journee" surtitre="Au quotidien">À quoi ressemble une journée</Titre>
-                  <ul className="flex flex-wrap gap-2" aria-label="L'environnement de travail">
-                    {infos.environnement.map((e) => (
-                      <li key={e} className="rounded-full bg-carte-2 px-3 py-1.5 text-sm font-semibold">{e}</li>
-                    ))}
-                  </ul>
-                  <ol className="mt-5 space-y-4">
-                    {infos.journee.map((etape, i) => {
-                      const Ic = MOMENTS[i] ?? Clock
-                      return (
-                        <li key={etape.moment} className="flex gap-3">
-                          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-carte-2 text-repere">
-                            <Ic size={19} aria-hidden="true" />
-                          </span>
-                          <div>
-                            <p className="font-bold">{etape.moment}</p>
-                            <p className="text-doux">{etape.texte}</p>
-                          </div>
-                        </li>
-                      )
-                    })}
-                  </ol>
-                  <div className="mt-4"><Source n={2}>Exemple inventé</Source></div>
-                </section>
+                {/* Avec une fiche de la Région : le résumé du métier, puis les informations pratiques */}
+                <ResumeRegion region={region} nomMetier={metier.nom} />
+                <InfosRegion region={region} metierId={metier.id} />
 
-                <section aria-labelledby="titre-formations" className="carte apparait p-5 sm:p-7" style={{ animationDelay: '200ms' }}>
-                  <Titre id="titre-formations" surtitre="Près de chez toi">Les formations pour y arriver</Titre>
-                  <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-xl bg-carte-2 px-4">
-                    <span className="font-semibold">Seulement en alternance</span>
-                    <input type="checkbox" checked={alternance} onChange={(e) => setAlternance(e.target.checked)} className="peer sr-only" />
-                    <span aria-hidden="true" className="relative h-7 w-12 rounded-full bg-ligne transition peer-checked:bg-violet peer-focus-visible:outline-3 peer-focus-visible:outline-violet-clair after:absolute after:left-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-5" />
-                  </label>
-                  <p className="mt-3 text-sm text-doux" aria-live="polite">
-                    {formations.length} formation{formations.length > 1 ? 's' : ''}
-                  </p>
-                  <ul className="mt-2 grid gap-3 sm:grid-cols-2">
-                    {formations.map((f) => (
-                      <li key={f.nom} className="rounded-xl border border-ligne p-4">
-                        <p className="font-bold leading-snug">{f.nom}</p>
-                        <ul className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
-                          <li className="flex items-center gap-1.5"><MapPin size={15} className="text-violet-clair" aria-hidden="true" />{f.ville}</li>
-                          <li className="flex items-center gap-1.5"><Clock size={15} className="text-violet-clair" aria-hidden="true" />{f.duree}</li>
-                          <li className="flex items-center gap-1.5"><Euro size={15} className="text-violet-clair" aria-hidden="true" />{f.cout}</li>
-                          <li className="flex items-center gap-1.5"><FileText size={15} className="text-violet-clair" aria-hidden="true" />{f.acces}</li>
-                        </ul>
-                        {f.alternance && (
-                          <span className="mt-3 inline-block rounded-full bg-coche-fond px-2.5 py-1 text-xs font-bold text-coche">En alternance possible</span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="mt-4"><Source n={2}>Exemple inventé</Source></div>
-                </section>
+                {/* La description du rapport reste là, repliée */}
+                <details className="carte apparait group p-5 sm:p-6">
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 text-lg font-bold [&::-webkit-details-marker]:hidden">
+                    <span className="flex items-center gap-2.5">
+                      <FileText size={19} className="shrink-0 text-violet-clair" aria-hidden="true" /> Ce que dit ton rapport
+                    </span>
+                    <ChevronDown size={20} className="shrink-0 text-doux transition group-open:rotate-180" aria-hidden="true" />
+                  </summary>
+                  <blockquote className="mt-3 border-l-4 border-repere pl-4 leading-relaxed">{metier.description}</blockquote>
+                  {lienPage}
+                </details>
               </>
             ) : (
-              <section aria-labelledby="titre-ailleurs" className="carte apparait p-5 sm:p-7" style={{ animationDelay: '140ms' }}>
-                <h2 id="titre-ailleurs" className="flex items-center gap-2 text-lg font-bold">
-                  <Info size={20} className="shrink-0 text-violet-clair" aria-hidden="true" /> Salaire, études, offres : où regarder
-                </h2>
-                <p className="mt-2 text-doux">Ton rapport ne donne pas ces informations. Ces sites les donnent, avec leurs sources :</p>
-                {/* Liens construits par l'API à partir de l'intitulé du métier ; sans eux, le site de la Région. */}
-                <ul className="mt-4 space-y-2">
-                  {(metier.liens?.length ? metier.liens : [{ site: 'orientation-regionsud', titre: 'orientation-regionsud.fr', url: 'https://www.orientation-regionsud.fr/' }]).map((l) => (
-                    <li key={l.site}>
-                      <a href={l.url} target="_blank" rel="noreferrer" className="flex min-h-12 items-center justify-between gap-3 rounded-xl bg-carte-2 px-4 py-2 font-semibold hover:text-violet-clair">
-                        {l.titre} <ArrowUpRight size={17} className="shrink-0" aria-hidden="true" /><span className="sr-only"> (nouvel onglet)</span>
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </section>
+              <>
+                <section aria-labelledby="titre-rapport" className="carte apparait p-5 sm:p-7" style={{ animationDelay: '80ms' }}>
+                  <Titre id="titre-rapport" surtitre="Ton rapport">Ce que dit ton rapport</Titre>
+                  <blockquote className="border-l-4 border-repere pl-4 text-lg leading-relaxed">{metier.description}</blockquote>
+                  {lienPage}
+                </section>
+
+                {infos ? (
+                  <>
+                    <section aria-labelledby="titre-journee" className="carte apparait p-5 sm:p-7" style={{ animationDelay: '140ms' }}>
+                      <Titre id="titre-journee" surtitre="Au quotidien">À quoi ressemble une journée</Titre>
+                      <ul className="flex flex-wrap gap-2" aria-label="L'environnement de travail">
+                        {infos.environnement.map((e) => (
+                          <li key={e} className="rounded-full bg-carte-2 px-3 py-1.5 text-sm font-semibold">{e}</li>
+                        ))}
+                      </ul>
+                      <ol className="mt-5 space-y-4">
+                        {infos.journee.map((etape, i) => {
+                          const Ic = MOMENTS[i] ?? Clock
+                          return (
+                            <li key={etape.moment} className="flex gap-3">
+                              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-carte-2 text-repere">
+                                <Ic size={19} aria-hidden="true" />
+                              </span>
+                              <div>
+                                <p className="font-bold">{etape.moment}</p>
+                                <p className="text-doux">{etape.texte}</p>
+                              </div>
+                            </li>
+                          )
+                        })}
+                      </ol>
+                      <div className="mt-4"><Source n={2}>Exemple inventé</Source></div>
+                    </section>
+
+                    <section aria-labelledby="titre-formations" className="carte apparait p-5 sm:p-7" style={{ animationDelay: '200ms' }}>
+                      <Titre id="titre-formations" surtitre="Près de chez toi">Les formations pour y arriver</Titre>
+                      <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-xl bg-carte-2 px-4">
+                        <span className="font-semibold">Seulement en alternance</span>
+                        <input type="checkbox" checked={alternance} onChange={(e) => setAlternance(e.target.checked)} className="peer sr-only" />
+                        <span aria-hidden="true" className="relative h-7 w-12 rounded-full bg-ligne transition peer-checked:bg-violet peer-focus-visible:outline-3 peer-focus-visible:outline-violet-clair after:absolute after:left-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-5" />
+                      </label>
+                      <p className="mt-3 text-sm text-doux" aria-live="polite">
+                        {formations.length} formation{formations.length > 1 ? 's' : ''}
+                      </p>
+                      <ul className="mt-2 grid gap-3 sm:grid-cols-2">
+                        {formations.map((f) => (
+                          <li key={f.nom} className="rounded-xl border border-ligne p-4">
+                            <p className="font-bold leading-snug">{f.nom}</p>
+                            <ul className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                              <li className="flex items-center gap-1.5"><MapPin size={15} className="text-violet-clair" aria-hidden="true" />{f.ville}</li>
+                              <li className="flex items-center gap-1.5"><Clock size={15} className="text-violet-clair" aria-hidden="true" />{f.duree}</li>
+                              <li className="flex items-center gap-1.5"><Euro size={15} className="text-violet-clair" aria-hidden="true" />{f.cout}</li>
+                              <li className="flex items-center gap-1.5"><FileText size={15} className="text-violet-clair" aria-hidden="true" />{f.acces}</li>
+                            </ul>
+                            {f.alternance && (
+                              <span className="mt-3 inline-block rounded-full bg-coche-fond px-2.5 py-1 text-xs font-bold text-coche">En alternance possible</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="mt-4"><Source n={2}>Exemple inventé</Source></div>
+                    </section>
+                  </>
+                ) : (
+                  <section aria-labelledby="titre-ailleurs" className="carte apparait p-5 sm:p-7" style={{ animationDelay: '140ms' }}>
+                    <h2 id="titre-ailleurs" className="flex items-center gap-2 text-lg font-bold">
+                      <Info size={20} className="shrink-0 text-violet-clair" aria-hidden="true" />
+                      {sansFiche ? 'Salaire, études, offres' : 'Salaire, études, offres : où regarder'}
+                    </h2>
+                    {sansFiche ? (
+                      <>
+                        <p className="mt-2">Pas d'info disponible sur le site d'orientation de la Région pour ce métier.</p>
+                        <p className="mt-2 text-doux">Tu peux chercher ailleurs, par exemple ici :</p>
+                      </>
+                    ) : (
+                      <p className="mt-2 text-doux">Ces sites donnent ces informations, avec leurs sources :</p>
+                    )}
+                    {/* Liens construits par l'API à partir de l'intitulé du métier ; sans eux, le site de la Région. */}
+                    <LiensAilleurs liens={liens} />
+                  </section>
+                )}
+              </>
             )}
+
+            {/* Ton avis : en bas, une fois les informations lues */}
+            <section aria-labelledby="titre-avis" className="carte apparait p-5 sm:p-6">
+              <h2 id="titre-avis" className="text-lg font-bold">Ton avis sur ce métier</h2>
+              <div role="radiogroup" aria-labelledby="titre-avis" className="mt-3 grid gap-2 sm:grid-cols-3">
+                {AVIS.map((a) => {
+                  const actif = avis === a.valeur
+                  return (
+                    <button
+                      key={a.valeur}
+                      type="button"
+                      role="radio"
+                      aria-checked={actif}
+                      onClick={() => changerAvis(a.valeur)}
+                      className={`min-h-12 rounded-xl border px-4 text-left font-semibold transition ${
+                        actif ? 'border-violet bg-violet text-white' : 'border-ligne hover:border-violet-clair'
+                      }`}
+                    >
+                      {a.label}
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="mt-3 text-sm text-doux">Tu peux changer d'avis quand tu veux. Ce métier reste dans ta liste.</p>
+            </section>
 
             {/* D'où viennent ces informations : obligatoire sur toute page qui cite autre chose que le rapport */}
             <section aria-labelledby="titre-sources" className="apparait rounded-2xl border border-dashed border-ligne p-5 sm:p-7" style={{ animationDelay: '260ms' }}>
@@ -296,15 +344,38 @@ export default function Metier() {
                   <p>
                     <span className="font-semibold">Ton Rapport des Possibles</span>, page {page} : l'intitulé, la description et le temps de
                     préparation.{' '}
-                    <Link to={`/rapport/${page}`} className="font-semibold text-violet-clair underline">Voir la page</Link>
+                    <Link to={`/rapport/${page}`} className="font-semibold text-violet-clair underline">Voir la page {page}</Link>
                   </p>
                 </li>
+                {region && (
+                  <li id="source-2" className="flex gap-3">
+                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-carte-2 text-xs font-bold">2</span>
+                    <p className="min-w-0">
+                      <span className="font-semibold">Fiche «&nbsp;{region.titre}&nbsp;»</span> du site d'orientation de la Région Sud
+                      {luLe && <>, lue le {luLe}</>} : le résumé du métier, l'accès, les horaires, les lieux de travail et les repères du
+                      marché du travail.{donnees && <> Données : {donnees}.</>}{' '}
+                      <a href={region.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 font-semibold text-violet-clair underline">
+                        Ouvrir la fiche sur orientation-regionsud.fr <ArrowUpRight size={13} aria-hidden="true" /><span className="sr-only"> (nouvel onglet)</span>
+                      </a>
+                    </p>
+                  </li>
+                )}
+                {region && aUnSalaire && (
+                  <li id="source-3" className="flex gap-3">
+                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-carte-2 text-xs font-bold">3</span>
+                    <p className="min-w-0">
+                      <span className="font-semibold">Le salaire</span> : {region.salaire_source ? `${region.salaire_source} ` : ''}
+                      Chiffre repris de la fiche du site de la Région.
+                    </p>
+                  </li>
+                )}
                 {infos && (
                   <li id="source-2" className="flex gap-3">
                     <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-carte-2 text-xs font-bold">2</span>
                     <p>
                       <span className="font-semibold">{SOURCE_EXEMPLE.titre}</span> : salaire, études, lieux, journée et formations.{' '}
-                      {SOURCE_EXEMPLE.detail}{' '}
+                      Avec un vrai rapport, ces exemples ne s'affichent pas : le site montre ce qu'il a lu sur
+                      orientation-regionsud.fr, ou les sites où chercher.{' '}
                       <a href={SOURCE_EXEMPLE.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 font-semibold text-violet-clair underline">
                         {SOURCE_EXEMPLE.lien} <ArrowUpRight size={13} aria-hidden="true" /><span className="sr-only"> (nouvel onglet)</span>
                       </a>

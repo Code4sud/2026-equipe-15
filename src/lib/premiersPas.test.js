@@ -66,6 +66,16 @@ test('chaque étape a un texte, et un lien interne commence par « / »', () => 
   }
 })
 
+test('l’étape de l’assistant n’a pas de lien : elle porte une action qui l’ouvre', () => {
+  for (const choix of [{}, onboarding]) {
+    const etape = construireReserve({ metiers, onboarding: choix, durees }).find((e) => e.id === 'assistant')
+    assert.equal(etape.action, 'assistant')
+    assert.equal(etape.lien, undefined)
+  }
+  const autres = construireReserve({ metiers, onboarding, durees }).filter((e) => e.id !== 'assistant')
+  assert.ok(autres.every((e) => e.action === undefined))
+})
+
 test('la carte montre 4 étapes ; en cocher une fait apparaître la suivante de la réserve', () => {
   const reserve = construireReserve({ metiers, onboarding, durees })
   const { visibles, faites, total } = repartir(reserve, {})

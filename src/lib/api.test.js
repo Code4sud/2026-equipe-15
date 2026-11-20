@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { lireJeton, adresseApi, urlPdf, preparerDonnees, demanderResume, chercherMetiers, CLE_JETON } from './api.js'
+import { lireJeton, adresseApi, urlPdf, preparerDonnees, demanderResume, chercherMetiers, doitRecommencer, sansRecommencer, CLE_JETON } from './api.js'
 
 const JETON = 'a'.repeat(32)
 const API = 'http://localhost:8000'
@@ -114,4 +114,15 @@ test('recherche de métiers : bonne adresse, résultats mis à la forme de ajout
     { id: 'onet-22-2022.00', nom: 'Métier FICTIF du rapport', dansRapport: 'z1-m1' },
   ])
   await assert.rejects(chercherMetiers({ api: API, jeton: JETON, q: 'x', fetch: async () => ({ ok: false, status: 503 }) }))
+})
+
+test('recommencer=1 : le lien demande de repartir de zéro, puis disparaît de l’adresse', () => {
+  assert.equal(doitRecommencer({ hash: `#/?r=${JETON}&recommencer=1`, search: '' }), true)
+  assert.equal(doitRecommencer({ hash: '#/?recommencer=1', search: '' }), true)
+  assert.equal(doitRecommencer({ hash: '#/', search: '?recommencer=1' }), true)
+  assert.equal(doitRecommencer({ hash: `#/?r=${JETON}`, search: '' }), false)
+  assert.equal(doitRecommencer({ hash: `#/?r=${JETON}&recommencer=0`, search: '' }), false)
+  assert.equal(sansRecommencer(`#/?r=${JETON}&recommencer=1`), `#/?r=${JETON}`)
+  assert.equal(sansRecommencer('#/?recommencer=1'), '#/')
+  assert.equal(sansRecommencer('#/onboarding'), '#/onboarding')
 })

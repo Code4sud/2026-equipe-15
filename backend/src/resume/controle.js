@@ -29,22 +29,29 @@ const INTERDITS = [
 
 const LONGUEUR_MAX = 260;
 
+// « 1 234 » est un seul nombre : les milliers séparés par une espace sont recollés.
 function nombres(texte) {
-  return (String(texte).match(/\d+/g) || []).map(Number);
+  return (String(texte).replace(/(\d)[\s\u00a0\u202f](?=\d{3}(?!\d))/g, '$1').match(/\d+/g) || []).map(Number);
 }
+
+// Mots admis quand la phrase cite un fait venu d'une source externe nommée
+// (site de la Région, `source: 'region'`) : le salaire ou le diplôme a alors une source.
+const ADMIS_AVEC_SOURCE = ['salaire', 'gagner', 'euro', 'diplome', 'bac ', 'debouche', 'niveau'];
 
 // Renvoie null si la phrase est acceptée, sinon la raison du refus.
 export function raisonDeRefus(texte, faitsCites) {
   if (typeof texte !== 'string' || !texte.trim()) return 'phrase vide';
   if (texte.length > LONGUEUR_MAX) return 'phrase trop longue';
   if (!faitsCites.length) return 'aucun fait cité';
-  if (/[%€$]/.test(texte)) return 'symbole interdit';
+  const avecSource = faitsCites.some((f) => f.source === 'region');
+  if ((avecSource ? /[%$]/ : /[%€$]/).test(texte)) return 'symbole interdit';
   const simplifier = (t) => ` ${normaliser(t).replace(/[^a-z0-9' -]/g, ' ').replace(/\s+/g, ' ')} `;
   let norm = simplifier(texte);
   // Un intitulé de métier cité par le fait peut contenir un mot de la liste
   // (« santé »…) : il est retiré avant la recherche des mots interdits.
   for (const nom of faitsCites.flatMap((f) => f.noms || [])) norm = norm.split(simplifier(nom).trim()).join(' ');
   for (const mot of INTERDITS) {
+    if (avecSource && ADMIS_AVEC_SOURCE.includes(mot)) continue;
     const re = new RegExp(`[ '-]${mot.trim().replace(/[-]/g, '\\-')}${mot.endsWith(' ') ? ' ' : ''}`);
     if (re.test(norm)) return `mot interdit : ${mot.trim()}`;
   }
