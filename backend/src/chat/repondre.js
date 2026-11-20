@@ -20,6 +20,13 @@ export const INDISPONIBLE =
   'Je ne peux pas te répondre pour le moment. Tu peux relire ton résumé, ou poser ta question au psychologue.';
 const NB_ESSAIS = 2;
 
+// Qwen recopie parfois l'identifiant du fait dans la phrase (« … (f1). ») :
+// il est retiré avant le contrôle, qui prendrait son chiffre pour un nombre
+// inventé et refuserait toute la réponse.
+const ID_FAIT = '(?:f\\d+|z\\d+-m\\d+)';
+const IDS_ENTRE_PARENTHESES = new RegExp(`\\s*[(\\[]\\s*${ID_FAIT}(?:\\s*(?:,|et)\\s*${ID_FAIT})*\\s*[)\\]]`, 'gi');
+const sansIdentifiants = (texte) => (typeof texte === 'string' ? texte.replace(IDS_ENTRE_PARENTHESES, '').trim() : texte);
+
 export async function repondreQuestion(analyse, { question, historique = [], onboarding = null }, { llm = discuterJson } = {}) {
   const { contexte } = construireContexte(analyse, onboarding);
   const parId = Object.fromEntries(contexte.map((f) => [f.id, f]));
@@ -40,9 +47,10 @@ export async function repondreQuestion(analyse, { question, historique = [], onb
     const phrases = [];
     for (const p of Array.isArray(r?.phrases) ? r.phrases : []) {
       const cites = faitsCites(p?.faits, parId);
-      const pourquoi = raisonDeRefus(p?.texte, cites);
+      const texte = sansIdentifiants(p?.texte);
+      const pourquoi = raisonDeRefus(texte, cites);
       if (pourquoi) refus.push(pourquoi);
-      else phrases.push({ texte: p.texte.trim(), faits: cites.map((f) => f.id) });
+      else phrases.push({ texte, faits: cites.map((f) => f.id) });
     }
     if (phrases.length) return resultat({ phrases, parId, dansRapport: true, mode: 'ia', refus });
     raison = 'phrases du modèle refusées par le contrôle';

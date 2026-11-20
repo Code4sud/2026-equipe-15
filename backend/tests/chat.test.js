@@ -129,6 +129,24 @@ test('réponse : phrases du modèle gardées, avec leurs sources et leurs pages'
   assert.deepEqual(r.controle, { phrases_refusees: 0, raisons: [] });
 });
 
+test('réponse : un identifiant de fait recopié dans la phrase est retiré, pas pris pour un nombre', async () => {
+  const { llm, appels } = llmFactice(() => ({
+    dans_rapport: true,
+    phrases: [
+      { texte: 'Ce qui ressort le plus chez toi, ce sont Réaliste et Artistique (f1).', faits: ['f1'] },
+      { texte: 'Le métier fictif A est une piste en zone 1 (z1-m1, f1).', faits: ['z1-m1', 'f1'] },
+      { texte: 'Tu as 9 points en Réaliste (f1).', faits: ['f1'] }, // un vrai nombre inventé reste refusé
+    ],
+  }));
+  const r = await repondreQuestion(analyseFictive(), { question: QUESTION }, { llm });
+  assert.equal(appels.length, 1);
+  assert.deepEqual(r.phrases.map((p) => p.texte), [
+    'Ce qui ressort le plus chez toi, ce sont Réaliste et Artistique.',
+    'Le métier fictif A est une piste en zone 1.',
+  ]);
+  assert.deepEqual(r.controle, { phrases_refusees: 1, raisons: ['nombre absent des faits : 9'] });
+});
+
 test('hors rapport : le backend écrit la réponse fixe, sans source', async () => {
   const { llm } = llmFactice(() => ({ dans_rapport: false, phrases: [] }));
   const r = await repondreQuestion(analyseFictive(), { question: 'Combien gagne un métier fictif A ?' }, { llm });
