@@ -7,12 +7,12 @@
 //   texte  : ce que le modèle reçoit (peut citer le texte du rapport) ;
 //   phrase : une phrase toute faite, simple, utilisée par le repli sans IA.
 //
-// Règles (AGENTS.md, section 5) : on compare la personne à elle-même (« ce
+// Règles du sujet : on compare la personne à elle-même (« ce
 // qui ressort le plus chez toi »), jamais aux autres ; aucune valeur chiffrée
 // de score n'est transmise ; les métiers sont des pistes.
 
 // Dimensions dont le texte explicatif du rapport n'est pas transmis au modèle :
-// il parle d'humeur et de stress, et AGENTS.md interdit toute déduction sur la
+// il parle d'humeur et de stress, et le sujet interdit toute déduction sur la
 // santé. Le nom de la dimension reste cité ; l'interprétation revient au
 // psychologue.
 const SANS_DESCRIPTION = ['Émotivité'];

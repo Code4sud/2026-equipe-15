@@ -1,4 +1,4 @@
-// Structure connue du Rapport des Possibles (AGENTS.md, section 4, et les vrais
+// Structure connue du Rapport des Possibles (description du sujet, et les vrais
 // PDF) : sections, mots-clés, et repérage des pages de chaque section.
 
 import { normaliser } from '../text.js';

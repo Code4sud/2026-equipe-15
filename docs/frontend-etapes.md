@@ -3,7 +3,7 @@
 Ce document donne l'ordre de travail du frontend. Les étapes 1 et 2 sont détaillées : ce sont elles qu'on montre
 au jury. Les suivantes sont décrites en quelques lignes et seront précisées quand on y arrive.
 
-À lire avant : `AGENTS.md`, sections 1 (règles éliminatoires) et 5 (ce que le produit dit au jeune).
+À respecter : les règles éliminatoires du hackathon et ce que le produit dit au jeune (tutoyer, ne rien inventer, pas de verdict).
 
 ## Règles valables pour toutes les étapes
 

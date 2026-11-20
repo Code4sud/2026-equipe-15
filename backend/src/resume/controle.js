@@ -2,7 +2,7 @@
 // Une phrase est refusée si elle :
 // - ne cite aucun fait existant ;
 // - contient un nombre absent des faits qu'elle cite (score, salaire…) ;
-// - emploie un mot interdit par les règles du sujet (AGENTS.md, section 5) :
+// - emploie un mot interdit par les règles du sujet :
 //   verdict, comparaison aux autres, santé, famille, salaire ou diplôme sans
 //   source ;
 // - vouvoie, est vide ou trop longue.

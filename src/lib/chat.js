@@ -10,7 +10,7 @@
 //                 suggestions?: [string], mode: 'ia' | 'demo' | 'repli' }
 // Une source :  { type: 'rapport', page, label } | { type: 'exemple', label, url? }
 //
-// Règles (AGENTS.md, section 5) : tutoyer, ne rien inventer, savoir dire « ce n'est pas dans ton
+// Règles du sujet : tutoyer, ne rien inventer, savoir dire « ce n'est pas dans ton
 // rapport », jamais de verdict ni de comparaison avec les autres.
 
 const DUREES = { 1: '0 à 6 mois', 2: '3 mois à 2 ans', 3: '1 à 4 ans', 4: '2 à 6 ans', 5: '4 à 10 ans' }

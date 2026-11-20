@@ -1,6 +1,6 @@
 // Liens de recherche d'un métier, pour les pages métier du site : c'est là que
 // le jeune trouvera salaires, études, formations et offres, avec leur source.
-// Rien n'est extrait de ces sites (AGENTS.md, section 4) : on construit
+// Rien n'est extrait de ces sites ici : on construit
 // seulement l'adresse, et le jeune ouvre la page lui-même.
 //
 // Adresses vérifiées à la main le 20/11/2026 :

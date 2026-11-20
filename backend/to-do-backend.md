@@ -38,7 +38,7 @@ C'est la première restitution décidée le 19/11, et c'est là que le jury cher
   - l'aptitude la plus haute chez le jeune, sauf si les libellés lus sous les barres sont douteux ;
   - les métiers préférés et intéressants de l'onboarding, ou à défaut les pistes du rapport ;
   - le rappel « image à un moment donné », avec la page de l'avertissement.
-- [x] Le prompt applique les règles de la section 5 d'AGENTS.md. Le modèle répond en JSON contraint par un schéma :
+- [x] Le prompt applique les règles du sujet. Le modèle répond en JSON contraint par un schéma :
       chaque phrase cite le fait sur lequel elle s'appuie.
 - [x] `src/resume/controle.js` : refus de toute phrase qui cite un fait inexistant, contient un nombre absent des faits,
       emploie un mot interdit (verdict, comparaison, santé, famille, salaire…), vouvoie, ou est trop longue. Un second
@@ -170,8 +170,6 @@ C'est la première restitution décidée le 19/11, et c'est là que le jury cher
       note le signale (ce cas n'arrive sur aucun des 18 rapports, il n'est donc pas testé).
 - [x] **À dire au front** : les noms des 9 aptitudes ne sont pas fixes. Fait : `src/pages/Profil.jsx` affiche les noms
       renvoyés par l'API, sans liste en dur.
-- [x] **AGENTS.md, section 4** : les deux jeux de 9 aptitudes y sont cités, avec la consigne d'afficher les noms de
-      l'API.
 - [x] **Premiers pas (bloc `todo`)** : tranché, ils restent dans le front. `contrat/README.md` dit maintenant que le
       site les calcule (`src/components/PremiersPas.jsx`).
 - [x] **Pages métier, liens de recherche** : chaque métier de `GET /report/{jeton}` a `liens` (ONISEP et France
@@ -195,9 +193,7 @@ C'est la première restitution décidée le 19/11, et c'est là que le jury cher
 
 ## Ménage dans le dépôt (avec l'accord de l'équipe)
 
-- [ ] **AGENTS.md, section 8** : elle parle encore d'upload, de `storage/uploads/` et de tests « sur un rapport
-      inventé ». À mettre à jour, c'est le fichier de toute l'équipe.
-- [ ] **AGENTS.md, règle 2 et README ligne 26** : « Les jeux de test sont inventés ». Les tests tournent maintenant sur
+- [ ] **README ligne 26** : « Les jeux de test sont inventés ». Les tests tournent maintenant sur
       les rapports de `prive/`, et rien de réel n'est versionné. La règle est à reformuler.
 - [ ] **`storage/uploads/`** ne sert plus. Le retirer touche `.gitignore` et `.githooks/` : à faire seulement avec
       l'accord de l'équipe.

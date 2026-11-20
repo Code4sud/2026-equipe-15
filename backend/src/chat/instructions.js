@@ -1,6 +1,6 @@
 // Instructions de l'assistant (chatbot) : le message « système » envoyé à Qwen
 // (Ollama), la forme imposée à sa réponse et le message qui porte la question.
-// Elles appliquent AGENTS.md, section 5. Qwen ne reçoit que les faits du
+// Elles appliquent les règles du sujet (tutoyer, ne rien inventer, pas de verdict). Qwen ne reçoit que les faits du
 // rapport (voir contexte.js), ceux lus sur le site de la Région quand ils
 // existent (voir regionsud.js), l'historique court de la discussion et la
 // question : rien d'autre.

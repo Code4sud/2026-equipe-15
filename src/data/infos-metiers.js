@@ -3,7 +3,7 @@
 // TOUT EST INVENTÉ, comme les métiers eux-mêmes (« Métier fictif A »). Chaque bloc porte sa source :
 // - source 'exemple' : donnée d'exemple, affichée avec l'étiquette « Exemple inventé » ;
 // - dans la vraie version, ces informations viendront d'orientation-regionsud.fr ou de l'ONISEP,
-//   citées par un lien, jamais recopiées (voir AGENTS.md, section 4).
+//   citées par un lien, jamais recopiées.
 
 export const SOURCE_EXEMPLE = {
   id: 'exemple',

@@ -38,7 +38,7 @@ const sansIdentifiants = (texte) =>
   typeof texte === 'string' ? texte.replace(IDS_ENTRE_PARENTHESES, '').replace(DEBUT_DE_LISTE, '').trim() : texte;
 
 // Le rapport ne dit jamais qu'un trait « explique » un métier ou un choix :
-// une phrase qui l'affirme est refusée (AGENTS.md, section 5 : ne rien inventer).
+// une phrase qui l'affirme est refusée (règle du sujet : ne rien inventer).
 const CAUSE = /(^|[ '])(expliqu|c'est pour ca|c'est pourquoi|voila pourquoi|c'est grace)/;
 const causeInventee = (texte) => CAUSE.test(normaliser(texte));
 
@@ -81,7 +81,7 @@ function pistesDuJeune(analyse, choix, question = '') {
   return (choisis.length ? choisis : parZone).slice(0, 3);
 }
 
-// Les premières phrases d'un texte du site, 240 caractères au plus : phrases courtes (AGENTS.md, section 5).
+// Les premières phrases d'un texte du site, 240 caractères au plus : phrases courtes (règle du sujet).
 function debut(texte) {
   let garde = '';
   for (const phrase of String(texte).match(/[^.!?]+[.!?]+/g) || [String(texte)]) {

@@ -16,7 +16,6 @@ Fichier public comme tout le dépôt : aucun nom de rapport, aucune valeur réel
   prive/liens.json n'est pas modifié : les jetons déjà créés marchent toujours.
 - Un lien expire au bout d'un an. Un lien expiré ou révoqué reçoit le même 404
   qu'un jeton inconnu.
-- AGENTS.md, section 4 : les deux jeux de 9 aptitudes sont maintenant cités.
 
 
 2. POUR LE FRONT
