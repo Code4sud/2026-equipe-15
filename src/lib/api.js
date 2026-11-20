@@ -90,12 +90,13 @@ export async function preparerDonnees({ env, lieu, stockage, fetch }) {
 }
 
 // Le résumé dépend des choix du jeune : on les envoie, sans l'état de l'écran d'onboarding.
-export async function demanderResume({ api, jeton, onboarding, fetch }) {
+// version : 'longue' pour la version détaillée (le résumé, puis un passage sur chaque métier préféré).
+export async function demanderResume({ api, jeton, onboarding, fetch, version }) {
   const { termine, interets_metiers, favoris, ajouts_psy } = onboarding ?? {}
   const reponse = await fetch(`${api}/report/${jeton}/resume`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ onboarding: { termine, interets_metiers, favoris, ajouts_psy } }),
+    body: JSON.stringify({ onboarding: { termine, interets_metiers, favoris, ajouts_psy }, ...(version ? { version } : {}) }),
   })
   if (!reponse.ok) throw new Error(`résumé indisponible (${reponse.status})`)
   return reponse.json()

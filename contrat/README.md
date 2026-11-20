@@ -202,6 +202,20 @@ Le backend n'en retient que les préférés et les métiers « interesse » qui 
 
 Le résumé est gardé en cache par jeton, choix et modèle, sauf en mode `repli` : le modèle est réessayé à l'appel suivant.
 
+#### Version détaillée : `"version": "longue"`
+
+Ajouter `"version": "longue"` au corps donne un texte d'une à deux minutes, pour la page « Écouter » : les phrases du
+résumé court, puis un passage sur chaque métier préféré (3 au plus ; à défaut les métiers « interesse »).
+
+- Par métier : son temps de préparation (écrit par le backend), trois phrases du modèle sur ce qu'on y fait et ce que
+  ça rejoint dans le profil (chacune cite le fait du métier, contrôlée comme le résumé, « ça explique » refusé ; à
+  défaut, le début de la description du rapport), puis, si la fiche du site de la Région a été préparée, un repère de
+  salaire et l'accès au métier. Une conclusion fixe rappelle que ce sont des pistes.
+- Réponse : `version: "longue"`, `texte`, `phrases` (`{ texte, faits, origine }` avec `origine` valant `ia`, `repli`
+  ou `code` ; une phrase tirée du site de la Région porte en plus `url` et `titre`), `faits` (ceux qui sont cités),
+  `metiers` (identifiants présentés), `genere_par`, `controle`, `audio_url`. Pas de `points`.
+- Gardée en cache comme le résumé court, sous une clé distincte.
+
 ### `GET /report/{jeton}/audio/{empreinte}`
 
 Le `texte` du résumé lu par Piper, en `audio/wav`. Créé au premier appel, puis relu. L'adresse vient toujours du

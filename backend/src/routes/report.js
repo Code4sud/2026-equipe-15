@@ -26,6 +26,7 @@ import { analyserRapport, VERSION_EXTRACTION } from '../report/analyzer.js';
 import { dossiersStockage } from '../storage.js';
 import { rapportDuJeton } from '../liens.js';
 import { genererResume } from '../resume/generer.js';
+import { genererResumeLong } from '../resume/long.js';
 import { nettoyerOnboarding } from '../resume/faits.js';
 import { configOllama } from '../ai/ollama.js';
 import { audioDisponible, empreinteAudio, EMPREINTE_VALIDE, fichierAudio, ErreurAudio } from '../audio/synthese.js';
@@ -173,19 +174,25 @@ router.post('/:jeton/resume', async (req, res) => {
     const analyse = await analyseDuJeton(req.params.jeton);
     if (!analyse) return res.status(404).json({ detail: 'Rapport introuvable' });
     const onboarding = req.body?.onboarding ?? null;
-    const cle = crypto
-      .createHash('sha256')
-      .update(JSON.stringify({ choix: nettoyerOnboarding(onboarding, analyse), modele: configOllama().modele }))
-      .digest('hex')
-      .slice(0, 16);
-    const cache = path.join(dossiersStockage().outputs, `${req.params.jeton}-resume-${cle}.json`);
     const pdf = rapportDuJeton(req.params.jeton);
-    let resume;
-    if (fs.existsSync(cache) && fs.statSync(cache).mtimeMs >= fs.statSync(pdf).mtimeMs) {
-      resume = JSON.parse(fs.readFileSync(cache, 'utf8'));
-    } else {
-      resume = await genererResume(analyse, onboarding);
-      if (resume.genere_par.mode !== 'repli') fs.writeFileSync(cache, JSON.stringify(resume, null, 2));
+    // Un résumé gardé est relu ; sinon il est écrit, et gardé sauf s'il est entièrement en repli.
+    const garde = async (version, ecrire) => {
+      const cle = crypto
+        .createHash('sha256')
+        .update(JSON.stringify({ choix: nettoyerOnboarding(onboarding, analyse), modele: configOllama().modele, ...(version ? { version } : {}) }))
+        .digest('hex')
+        .slice(0, 16);
+      const cache = path.join(dossiersStockage().outputs, `${req.params.jeton}-resume-${cle}.json`);
+      if (fs.existsSync(cache) && fs.statSync(cache).mtimeMs >= fs.statSync(pdf).mtimeMs) return JSON.parse(fs.readFileSync(cache, 'utf8'));
+      const ecrit = await ecrire();
+      if (ecrit.genere_par.mode !== 'repli') fs.writeFileSync(cache, JSON.stringify(ecrit, null, 2));
+      return ecrit;
+    };
+    let resume = await garde(null, () => genererResume(analyse, onboarding));
+    // « version: longue » : le résumé court, puis un passage sur chaque métier préféré (resume/long.js).
+    if (req.body?.version === 'longue') {
+      const court = resume;
+      resume = await garde('longue', () => genererResumeLong(analyse, onboarding, court));
     }
     res.json({ ...resume, audio_url: preparerAudio(req.params.jeton, resume.texte) });
   } catch (e) {
