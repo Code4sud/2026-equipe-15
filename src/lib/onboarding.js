@@ -108,7 +108,15 @@ export function lireChoix(storage, rapportId, metiers, catalogue) {
     const id = input.favoris?.[zone];
     favoris[zone] = disponibles.some((m) => m.id === id) ? id : null;
   }
-  const ajouts_psy = catalogue.filter((m) => Array.isArray(input.ajouts_psy) && input.ajouts_psy.some((a) => a?.id === m.id));
+  // Métiers ajoutés : ceux du catalogue d'exemple, ou ceux trouvés dans la table du Centre par l'API
+  // (id « onet-<code> », intitulé court), qui ne sont pas dans le catalogue local.
+  const ajoutes = Array.isArray(input.ajouts_psy) ? input.ajouts_psy : [];
+  const ajouts_psy = [
+    ...catalogue.filter((m) => ajoutes.some((a) => a?.id === m.id)),
+    ...ajoutes
+      .filter((a) => /^onet-[0-9A-Za-z.-]{1,20}$/.test(a?.id ?? '') && typeof a.nom === 'string' && a.nom.trim() && a.nom.length <= 150)
+      .map((a) => ({ id: a.id, nom: a.nom.trim() })),
+  ].filter((m, i, tous) => tous.findIndex((x) => x.id === m.id) === i);
   const progression = input.progression || {};
   const ecrans = ['bienvenue', 'metiers', 'favoris', 'ajouts', 'recap'];
   const zoneCount = new Set(metiers.map((m) => m.zone)).size;

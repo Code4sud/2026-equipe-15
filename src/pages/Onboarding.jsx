@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { rapport, metiers, zones, autresMetiers } from '../data/rapport.js';
+import { rapport, metiers, zones } from '../data/rapport.js';
+import { useRechercheMetiers } from '../lib/rechercheMetiers.js';
 import { apresAvis, apresPrefere, avisLabels, candidats, choisirAvis, entrerMetiers, entrerZone, retour } from '../lib/onboarding.js';
 import { useOnboarding, useOnboardingStatus } from '../lib/onboarding-context.jsx';
 import EnTete from '../components/EnTete.jsx';
@@ -96,8 +97,8 @@ export default function Onboarding() {
   const zone = zonesRemplies[state.progression.zone];
   const disponibles = zone ? candidats(zone, state.interets_metiers) : [];
   const hasInterested = disponibles.some((m) => state.interets_metiers[m.id] === 'interesse');
-  const normalize = (text) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr');
-  const matches = query.trim().length >= 2 ? autresMetiers.filter((m) => normalize(m.nom).includes(normalize(query.trim())) && !state.ajouts_psy.some((a) => a.id === m.id)) : [];
+  const recherche = useRechercheMetiers(query, state.ajouts_psy);
+  const matches = recherche.resultats;
 
   return <div className="onboarding">
     <a className="skip-link" href="#contenu" onClick={(event) => { event.preventDefault(); document.getElementById('contenu')?.focus(); }}>Aller au contenu</a>
@@ -158,9 +159,16 @@ export default function Onboarding() {
           <form onSubmit={addJob}>
             <label className="search-label" htmlFor="job-search">Rechercher un métier</label>
             <div className="search-field"><Icon name="search" /><input id="job-search" type="search" autoComplete="off" value={query} placeholder="Tape au moins deux lettres…" onChange={(e) => { setQuery(e.target.value); setSelected(null); }} aria-describedby="search-help" /></div>
-            <p id="search-help" className="muted search-help">Liste d’exemple : tous les intitulés sont fictifs.</p>
-            <div aria-live="polite" className="sr-only">{query.trim().length >= 2 ? `${matches.length} résultat(s)` : ''}</div>
-            {query.trim().length >= 2 && <ul className="search-results" aria-label="Métiers proposés">{matches.map((m) => <li key={m.id}><button type="button" aria-pressed={selected?.id === m.id} className={selected?.id === m.id ? 'chosen' : ''} onClick={() => { setSelected(m); setQuery(m.nom); }}><span>{m.nom}</span>{selected?.id === m.id && <Icon name="check" />}</button></li>)}{!matches.length && <li className="no-result">Aucun métier dans cette liste d’exemple.</li>}</ul>}
+            <p id="search-help" className="muted search-help">{recherche.avecApi ? 'Les métiers de la base du Centre des Possibles.' : 'Liste d’exemple : tous les intitulés sont fictifs.'}</p>
+            <div aria-live="polite" className="sr-only">{recherche.statut === 'pret' ? `${matches.length} résultat(s)` : ''}</div>
+            {recherche.statut !== 'repos' && <ul className="search-results" aria-label="Métiers proposés" aria-busy={recherche.statut === 'chargement'}>
+              {recherche.statut === 'chargement' && <li className="no-result">Recherche…</li>}
+              {recherche.statut === 'erreur' && <li className="no-result">La recherche ne répond pas pour l’instant. Réessaie dans un moment.</li>}
+              {matches.map((m) => m.dansRapport
+                ? <li key={m.id} className="no-result">{m.nom} : déjà dans ton rapport</li>
+                : <li key={m.id}><button type="button" aria-pressed={selected?.id === m.id} className={selected?.id === m.id ? 'chosen' : ''} onClick={() => { setSelected({ id: m.id, nom: m.nom }); setQuery(m.nom); }}><span>{m.nom}</span>{selected?.id === m.id && <Icon name="check" />}</button></li>)}
+              {recherche.statut === 'pret' && !matches.length && <li className="no-result">{recherche.avecApi ? 'Aucun métier trouvé. Essaie un autre mot.' : 'Aucun métier dans cette liste d’exemple.'}</li>}
+            </ul>}
             <button className="secondary add-button" type="submit" disabled={!selected}>Ajouter</button>
           </form>
           {state.ajouts_psy.length > 0 && <><h2 className="section-label">Tes pistes ajoutées</h2><ul className="added-list">{state.ajouts_psy.map((m) => <li key={m.id}><span>{m.nom}</span><button className="remove-button" aria-label={`Retirer ${m.nom}`} onClick={() => update({ ...state, ajouts_psy: state.ajouts_psy.filter((a) => a.id !== m.id) })}><Icon name="close" /></button></li>)}</ul></>}
