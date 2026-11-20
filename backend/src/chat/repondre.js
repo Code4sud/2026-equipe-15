@@ -10,6 +10,7 @@
 
 import { discuterJson, configOllama, ErreurIA } from '../ai/ollama.js';
 import { raisonDeRefus, faitsCites } from '../resume/controle.js';
+import { normaliser } from '../text.js';
 import { construireContexte } from './contexte.js';
 import { SYSTEME, SCHEMA, message } from './instructions.js';
 
@@ -20,15 +21,46 @@ export const INDISPONIBLE =
   'Je ne peux pas te répondre pour le moment. Tu peux relire ton résumé, ou poser ta question au psychologue.';
 const NB_ESSAIS = 2;
 
-// Qwen recopie parfois l'identifiant du fait dans la phrase (« … (f1). ») :
-// il est retiré avant le contrôle, qui prendrait son chiffre pour un nombre
-// inventé et refuserait toute la réponse.
+// Qwen recopie parfois l'identifiant du fait dans la phrase (« … (f1). ») ou
+// numérote ses phrases (« 1. … ») : c'est retiré avant le contrôle, qui
+// prendrait ces chiffres pour des nombres inventés et refuserait la réponse.
 const ID_FAIT = '(?:f\\d+|z\\d+-m\\d+)';
 const IDS_ENTRE_PARENTHESES = new RegExp(`\\s*[(\\[]\\s*${ID_FAIT}(?:\\s*(?:,|et)\\s*${ID_FAIT})*\\s*[)\\]]`, 'gi');
-const sansIdentifiants = (texte) => (typeof texte === 'string' ? texte.replace(IDS_ENTRE_PARENTHESES, '').trim() : texte);
+const DEBUT_DE_LISTE = /^\s*(?:\d+\s*[.)]|[-•*])\s+/;
+const sansIdentifiants = (texte) =>
+  typeof texte === 'string' ? texte.replace(IDS_ENTRE_PARENTHESES, '').replace(DEBUT_DE_LISTE, '').trim() : texte;
+
+// Le rapport ne dit jamais qu'un trait « explique » un métier ou un choix :
+// une phrase qui l'affirme est refusée (AGENTS.md, section 5 : ne rien inventer).
+const CAUSE = /(^|[ '])(expliqu|c'est pour ca|c'est pourquoi|voila pourquoi|c'est grace)/;
+const causeInventee = (texte) => CAUSE.test(normaliser(texte));
+
+// Question sur les formations ou les études : le rapport n'en donne pas, mais
+// il donne le temps de préparation de chaque piste. Le backend écrit la
+// réponse lui-même, à partir des préférés du jeune (sinon une piste par zone).
+const FORMATIONS = /(^|[ '])(formation|etude|ecole|diplome|apprentissage|alternance)/;
+const SANS_FORMATIONS = 'Ton rapport ne donne pas de formations.';
+const VOIR_AILLEURS = "Pour trouver une formation, parles-en au psychologue ou regarde sur orientation-regionsud.fr.";
+
+function phrasesFormations(analyse, choix) {
+  const parId = Object.fromEntries(analyse.metiers.map((m) => [m.id, m]));
+  const choisis = (choix.favoris.length ? choix.favoris : choix.interesses).map((id) => parId[id]).filter(Boolean);
+  const parZone = analyse.metiers.filter((m, i, tous) => tous.findIndex((x) => x.zone === m.zone) === i);
+  const pistes = (choisis.length ? choisis : parZone)
+    .map((m) => ({ m, duree: /accessibles? en (.+)$/.exec(m.zone_label || '')?.[1] }))
+    .filter((p) => p.duree)
+    .slice(0, 3);
+  if (!pistes.length) return null;
+  return [
+    { texte: SANS_FORMATIONS, faits: [] },
+    { texte: 'Il indique un temps de préparation pour chaque piste.', faits: [] },
+    ...pistes.map(({ m, duree }) => ({ texte: `« ${m.nom} » : ${duree} de préparation.`, faits: [m.id] })),
+    { texte: VOIR_AILLEURS, faits: [] },
+  ];
+}
 
 export async function repondreQuestion(analyse, { question, historique = [], onboarding = null }, { llm = discuterJson } = {}) {
-  const { contexte } = construireContexte(analyse, onboarding);
+  const { contexte, choix } = construireContexte(analyse, onboarding);
   const parId = Object.fromEntries(contexte.map((f) => [f.id, f]));
   const refus = [];
   let raison = null;
@@ -42,13 +74,17 @@ export async function repondreQuestion(analyse, { question, historique = [], onb
       raison = e.message;
       break;
     }
-    if (r?.dans_rapport === false) return resultat({ texte: HORS_RAPPORT, dansRapport: false, mode: 'ia', refus });
+    if (r?.dans_rapport === false) {
+      const phrases = FORMATIONS.test(normaliser(question)) ? phrasesFormations(analyse, choix) : null;
+      if (phrases) return resultat({ phrases, parId, dansRapport: false, mode: 'ia', refus });
+      return resultat({ texte: HORS_RAPPORT, dansRapport: false, mode: 'ia', refus });
+    }
 
     const phrases = [];
     for (const p of Array.isArray(r?.phrases) ? r.phrases : []) {
       const cites = faitsCites(p?.faits, parId);
       const texte = sansIdentifiants(p?.texte);
-      const pourquoi = raisonDeRefus(texte, cites);
+      const pourquoi = raisonDeRefus(texte, cites) ?? (causeInventee(texte) ? 'lien de cause absent du rapport' : null);
       if (pourquoi) refus.push(pourquoi);
       else phrases.push({ texte, faits: cites.map((f) => f.id) });
     }

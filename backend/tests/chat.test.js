@@ -147,6 +147,38 @@ test('réponse : un identifiant de fait recopié dans la phrase est retiré, pas
   assert.deepEqual(r.controle, { phrases_refusees: 1, raisons: ['nombre absent des faits : 9'] });
 });
 
+test('réponse : numéro de liste retiré, lien de cause inventé refusé', async () => {
+  const { llm } = llmFactice(() => ({
+    dans_rapport: true,
+    phrases: [
+      { texte: '1. Ce qui ressort le plus chez toi, ce sont Réaliste et Artistique.', faits: ['f1'] },
+      { texte: 'Ces points expliquent ton choix du métier fictif A.', faits: ['z1-m1'] },
+    ],
+  }));
+  const r = await repondreQuestion(analyseFictive(), { question: QUESTION }, { llm });
+  assert.deepEqual(r.phrases.map((p) => p.texte), ['Ce qui ressort le plus chez toi, ce sont Réaliste et Artistique.']);
+  assert.deepEqual(r.controle, { phrases_refusees: 1, raisons: ['lien de cause absent du rapport'] });
+});
+
+test('formations : absentes du rapport, le backend rappelle le temps de préparation des préférés', async () => {
+  const { llm } = llmFactice(() => ({ dans_rapport: false, phrases: [] }));
+  const onboarding = { termine: true, interets_metiers: { 'z2-m1': 'interesse' }, favoris: { 2: 'z2-m1' }, ajouts_psy: [] };
+  const r = await repondreQuestion(analyseFictive(), { question: 'Quelles formations ?', onboarding }, { llm });
+  assert.equal(r.dans_rapport, false);
+  assert.match(r.phrases[0].texte, /ne donne pas de formation/);
+  assert.ok(r.phrases.some((p) => p.texte.includes('Métier fictif B de la santé') && p.texte.includes('3 mois à 2 ans')));
+  assert.deepEqual(r.sources.map((s) => [s.fait, s.page]), [['z2-m1', 6]]);
+  assert.equal(r.reponse, r.phrases.map((p) => p.texte).join(' '));
+
+  // Sans préféré : une piste par zone du rapport.
+  const sans = await repondreQuestion(analyseFictive(), { question: 'Il faut faire quelles études ?' }, { llm });
+  assert.deepEqual(sans.sources.map((s) => s.fait), ['z1-m1', 'z2-m1']);
+
+  // Une autre question hors rapport garde la réponse fixe.
+  const autre = await repondreQuestion(analyseFictive(), { question: 'Combien ça gagne ?' }, { llm });
+  assert.equal(autre.reponse, HORS_RAPPORT);
+});
+
 test('hors rapport : le backend écrit la réponse fixe, sans source', async () => {
   const { llm } = llmFactice(() => ({ dans_rapport: false, phrases: [] }));
   const r = await repondreQuestion(analyseFictive(), { question: 'Combien gagne un métier fictif A ?' }, { llm });
