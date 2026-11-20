@@ -269,15 +269,21 @@ export default function Metier() {
                 </section>
               </>
             ) : (
-              <section className="carte apparait flex gap-3 p-5" style={{ animationDelay: '140ms' }}>
-                <Info size={20} className="mt-0.5 shrink-0 text-violet-clair" aria-hidden="true" />
-                <p className="text-doux">
-                  Salaires, formations près de chez toi, journée type : bientôt ici, avec leurs sources. En attendant,
-                  regarde sur{' '}
-                  <a href="https://www.orientation-regionsud.fr/" target="_blank" rel="noreferrer" className="font-semibold text-violet-clair underline">
-                    orientation-regionsud.fr<span className="sr-only"> (nouvel onglet)</span>
-                  </a>.
-                </p>
+              <section aria-labelledby="titre-ailleurs" className="carte apparait p-5 sm:p-7" style={{ animationDelay: '140ms' }}>
+                <h2 id="titre-ailleurs" className="flex items-center gap-2 text-lg font-bold">
+                  <Info size={20} className="shrink-0 text-violet-clair" aria-hidden="true" /> Salaire, études, offres : où regarder
+                </h2>
+                <p className="mt-2 text-doux">Ton rapport ne donne pas ces informations. Ces sites les donnent, avec leurs sources :</p>
+                {/* Liens construits par l'API à partir de l'intitulé du métier ; sans eux, le site de la Région. */}
+                <ul className="mt-4 space-y-2">
+                  {(metier.liens?.length ? metier.liens : [{ site: 'orientation-regionsud', titre: 'orientation-regionsud.fr', url: 'https://www.orientation-regionsud.fr/' }]).map((l) => (
+                    <li key={l.site}>
+                      <a href={l.url} target="_blank" rel="noreferrer" className="flex min-h-12 items-center justify-between gap-3 rounded-xl bg-carte-2 px-4 py-2 font-semibold hover:text-violet-clair">
+                        {l.titre} <ArrowUpRight size={17} className="shrink-0" aria-hidden="true" /><span className="sr-only"> (nouvel onglet)</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
               </section>
             )}
 
