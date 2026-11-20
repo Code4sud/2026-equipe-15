@@ -62,7 +62,7 @@ export default function MonEspace() {
     <Carte id="espace-rapport" titre="Ton rapport" Icone={FileText}>
       <dl className="mb-3 divide-y divide-ligne">
         <Ligne label="Rendez-vous">{source === 'api' ? rapport.rdv : `${rapport.rdv} · données inventées`}</Ligne>
-        {rapport.nb_pages > 0 && <Ligne label="Longueur">{rapport.nb_pages} pages</Ligne>}
+        {rapport.nb_pages > 0 && <Ligne label="Longueur">{rapport.nb_pages} page{rapport.nb_pages > 1 ? 's' : ''}</Ligne>}
       </dl>
       <Link to="/rapport/1" className={BOUTON_PLEIN}><FileText size={18} aria-hidden="true" />Ouvrir ton rapport complet</Link>
     </Carte>
@@ -87,7 +87,8 @@ export default function MonEspace() {
     <Carte id="espace-donnees" titre="Tes données" Icone={ShieldCheck}>
       <ul className="mb-4 list-disc space-y-1.5 pl-5 text-base leading-relaxed text-doux">
         <li>Pas de compte, pas de mot de passe.</li>
-        <li>Tes choix et ta discussion avec l’assistant restent dans ce navigateur.</li>
+        <li>Tes choix sont enregistrés dans ce navigateur. Ta discussion avec l’assistant s’efface quand tu fermes l’onglet.</li>
+        {source === 'api' && <li>Pour écrire ton résumé et te répondre, tes choix et tes questions sont envoyés à l’IA du projet.</li>}
         <li>Ton rapport s’ouvre avec ton lien personnel. Ne le partage qu’avec les personnes de ton choix.</li>
       </ul>
       {confirmation
